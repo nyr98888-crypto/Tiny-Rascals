@@ -1,6 +1,7 @@
 import manifest from "@/data/assetManifest.json";
 import { CozyAudio } from "./audio";
 import { buildIslandEntities, landToScreen } from "./layouts";
+import { Pose, poseFromVelocity } from "./poses";
 import { loadSave, writeSave, canAfford, spend, UPGRADE_COSTS, NEXT_ISLAND } from "./save";
 import { TextureManager } from "./textures";
 import { clampToWalkBounds } from "./walkBounds";
@@ -9,27 +10,48 @@ import type {
   IslandId,
   Particle,
   Rascal,
+  RascalTask,
   WorldEntity,
 } from "./types";
 import { ISLAND_ORDER } from "./types";
 
-const POSE = {
-  walk: 9,
-  hop: 10,
-  dash: 11,
-  trip: 12,
-  sleep: 7,
-  wash: 6,
-  wave: 18,
-  heart: 19,
-  eat: 20,
-  crown: 23,
-  dig: 1,
-  water: 0,
-  harvest: 2,
-};
-
 type Listener = () => void;
+
+function freshRascal(
+  id: string,
+  petId: string,
+  x: number,
+  y: number,
+  xp = 0,
+  level = 1
+): Rascal {
+  return {
+    id,
+    petId,
+    x,
+    y,
+    vx: 0,
+    vy: 0,
+    state: "WANDER_PATH",
+    pose: Pose.IDLE,
+    poseTimer: 0,
+    facing: 1,
+    target: null,
+    interactWith: null,
+    socialWith: null,
+    task: null,
+    taskStep: 0,
+    poseChain: [],
+    sprint: false,
+    shake: 0,
+    hidePropId: null,
+    squash: 1,
+    held: false,
+    xp,
+    level,
+    bounce: 0,
+  };
+}
 
 export class GameEngine {
   canvas: HTMLCanvasElement;
@@ -67,6 +89,10 @@ export class GameEngine {
   grabOffset = { dx: 0, dy: 0 };
   hoverEntity: WorldEntity | null = null;
   hoverRascal: Rascal | null = null;
+  /** Distinguish click-cheer vs grab-hold. */
+  pointerDownAt = 0;
+  pointerDownNorm = { x: 0, y: 0 };
+  heldMoved = false;
 
   private raf = 0;
   private lastTs = 0;
@@ -206,26 +232,9 @@ export class GameEngine {
     const prog = this.save.islands[island];
     const overrides = this.save.layoutOverrides?.[island] ?? {};
     this.entities = buildIslandEntities(manifest, island, prog, overrides);
-    this.rascals = (this.save.spawned[island] || []).map((s, i) => ({
-      id: `${island}-rascal-${i}-${s.petId}`,
-      petId: s.petId,
-      x: s.x,
-      y: s.y,
-      vx: 0,
-      vy: 0,
-      state: "WANDER_PATH" as const,
-      pose: POSE.walk,
-      poseTimer: 0,
-      facing: 1 as const,
-      target: null,
-      interactWith: null,
-      socialWith: null,
-      squash: 1,
-      held: false,
-      xp: s.xp,
-      level: s.level,
-      bounce: 0,
-    }));
+    this.rascals = (this.save.spawned[island] || []).map((s, i) =>
+      freshRascal(`${island}-rascal-${i}-${s.petId}`, s.petId, s.x, s.y, s.xp, s.level)
+    );
     void this.loadActiveTextures().then(() => {
       this.frameIsland();
       this.emit();
@@ -255,26 +264,11 @@ export class GameEngine {
 
   spawnPet(petId: string, x = 0.5, y = 0.85) {
     const island = this.save.activeIsland;
-    this.rascals.push({
-      id: `${island}-rascal-${Date.now()}`,
-      petId,
-      x,
-      y,
-      vx: 0,
-      vy: 0,
-      state: "WANDER_PATH",
-      pose: POSE.wave,
-      poseTimer: 1.2,
-      facing: 1,
-      target: null,
-      interactWith: null,
-      socialWith: null,
-      squash: 1,
-      held: false,
-      xp: 0,
-      level: 1,
-      bounce: 0.4,
-    });
+    const r = freshRascal(`${island}-rascal-${Date.now()}`, petId, x, y);
+    r.pose = Pose.WAVE_HELLO;
+    r.poseTimer = 1.2;
+    r.bounce = 0.4;
+    this.rascals.push(r);
     if (!this.save.discovered.includes(petId)) this.save.discovered.push(petId);
     this.persistRascals();
     writeSave(this.save);
@@ -500,8 +494,13 @@ export class GameEngine {
     if (rascal) {
       const n = this.worldToNorm(world.x, world.y);
       this.grabOffset = { dx: n.x - rascal.x, dy: n.y - rascal.y };
+      this.pointerDownAt = performance.now();
+      this.pointerDownNorm = { x: n.x, y: n.y };
+      this.heldMoved = false;
       rascal.held = true;
       rascal.state = "HELD";
+      rascal.shake = 0;
+      rascal.pose = Pose.CROUCH;
       rascal.bounce = 0.35;
       rascal.squash = 0.75;
       this.heldRascal = rascal;
@@ -531,8 +530,17 @@ export class GameEngine {
         raw.x - this.grabOffset.dx,
         raw.y - this.grabOffset.dy
       );
+      const prevX = this.heldRascal.x;
+      const prevY = this.heldRascal.y;
       this.heldRascal.x = n.x;
       this.heldRascal.y = n.y;
+      const move = Math.hypot(n.x - prevX, n.y - prevY);
+      if (move > 0.004) this.heldMoved = true;
+      // Shake accumulation while held mid-air
+      this.heldRascal.shake += move * 18;
+      if (this.heldRascal.shake > 0.35) {
+        this.heldRascal.pose = Pose.SURPRISED;
+      }
       return;
     }
     if (this.dragEntity) {
@@ -580,31 +588,34 @@ export class GameEngine {
       r.bounce = 0.45;
       r.squash = 1.25;
       this.grabOffset = { dx: 0, dy: 0 };
-      const prop = this.nearestInteractable(r.x, r.y, 0.08);
-      const friend = this.nearestRascal(r, 0.07);
-      if (prop) {
-        r.state = "USE_PROP";
-        r.interactWith = prop.id;
-        r.poseTimer = 2.5;
-        r.pose = this.poseForInteract(prop.interact);
-        if (prop.interact === "tub") this.audio.splash();
-        else if (prop.interact === "tree") this.audio.chop();
-        else this.audio.chirp();
-        this.gainResourceFrom(prop);
-      } else if (friend) {
-        r.state = "SOCIAL_EMOTE";
-        friend.state = "SOCIAL_EMOTE";
-        r.socialWith = friend.id;
-        friend.socialWith = r.id;
-        r.pose = POSE.wave;
-        friend.pose = POSE.heart;
-        r.poseTimer = 2;
-        friend.poseTimer = 2;
+
+      const elapsed = performance.now() - this.pointerDownAt;
+      const travel = Math.hypot(r.x - this.pointerDownNorm.x, r.y - this.pointerDownNorm.y);
+      const wasClick = elapsed < 220 && travel < 0.03 && !this.heldMoved;
+
+      if (wasClick) {
+        // Click cheer: CROUCH → JUMP_CHEER → CELEBRATE
+        this.startPoseChain(r, [Pose.CROUCH, Pose.JUMP_CHEER, Pose.CELEBRATE], "click", 0.45);
         this.audio.chirp();
+      } else if (r.shake > 0.8) {
+        // Shaken in mid-air → dizzy on landing
+        this.startPoseChain(r, [Pose.DIZZY_STARS, Pose.SHY], "trip_recover", 0.7);
+        this.audio.pop();
       } else {
-        r.state = "WANDER_PATH";
-        r.target = null;
+        const prop = this.nearestInteractable(r.x, r.y, 0.08);
+        const friend = this.nearestRascal(r, 0.07);
+        if (prop) {
+          this.beginStationVisit(r, prop, true);
+        } else if (friend) {
+          this.beginSocial(r, friend);
+        } else {
+          r.state = "WANDER_PATH";
+          r.target = null;
+          r.task = null;
+          r.sprint = true; // rush after being dropped
+        }
       }
+      r.shake = 0;
       this.heldRascal = null;
       this.persistRascals();
       writeSave(this.save);
@@ -621,32 +632,74 @@ export class GameEngine {
     );
   };
 
-  private poseForInteract(kind: WorldEntity["interact"]) {
-    switch (kind) {
-      case "tub":
-        return POSE.wash;
-      case "bed":
-        return POSE.sleep;
-      case "campfire":
-      case "picnic":
-        return POSE.eat;
-      case "tree":
-        return POSE.dig;
-      case "bush":
-      case "soil":
-        return POSE.harvest;
-      case "bench":
-        return POSE.eat;
-      default:
-        return POSE.wave;
-    }
+  private findLandmark(kind: "barn" | "kitchen" | "clubhouse") {
+    return this.entities.find((e) => e.interact === kind) ?? null;
+  }
+
+  private startPoseChain(
+    r: Rascal,
+    poses: number[],
+    task: RascalTask,
+    stepSec: number
+  ) {
+    r.state = "POSE_CHAIN";
+    r.task = task;
+    r.poseChain = [...poses];
+    r.pose = poses[0];
+    r.poseTimer = stepSec;
+    r.target = null;
+    r.sprint = false;
+  }
+
+  private beginSocial(a: Rascal, b: Rascal) {
+    a.state = "SOCIAL_EMOTE";
+    b.state = "SOCIAL_EMOTE";
+    a.socialWith = b.id;
+    b.socialWith = a.id;
+    a.task = "social";
+    b.task = "social";
+    const useHeart = Math.random() < 0.5;
+    a.pose = useHeart ? Pose.HEART_EYES : Pose.WAVE_HELLO;
+    b.pose = useHeart ? Pose.WAVE_HELLO : Pose.HEART_EYES;
+    a.poseTimer = 1.8;
+    b.poseTimer = 1.8;
+    a.target = null;
+    b.target = null;
+    this.audio.chirp();
+  }
+
+  private beginStationVisit(r: Rascal, prop: WorldEntity, fromDrop: boolean) {
+    r.interactWith = prop.id;
+    r.sprint = fromDrop;
+    r.target = { x: prop.x, y: prop.y };
+    r.state = "WANDER_PATH";
+    const kind = prop.interact;
+    if (kind === "soil") r.task = "farm";
+    else if (kind === "bush") r.task = "bush";
+    else if (kind === "tree") r.task = "tree";
+    else if (kind === "kitchen") r.task = "cook";
+    else if (kind === "tub") r.task = "bath";
+    else if (kind === "bed" || kind === "clubhouse") r.task = "sleep";
+    else if (kind === "bench" || kind === "campfire" || kind === "picnic") r.task = "eat";
+    else r.task = null;
+    r.taskStep = 0;
+    if (kind === "tub") this.audio.splash();
+    else if (kind === "tree") this.audio.chop();
+    else this.audio.chirp();
+  }
+
+  private clearHideProp(r: Rascal) {
+    if (!r.hidePropId) return;
+    const e = this.entities.find((x) => x.id === r.hidePropId);
+    if (e) e.hidden = false;
+    r.hidePropId = null;
   }
 
   private nearestInteractable(x: number, y: number, radius: number) {
     let best: WorldEntity | null = null;
     let bestD = radius;
     for (const e of this.entities) {
-      if (!e.interact) continue;
+      if (!e.interact || e.hidden) continue;
       const d = Math.hypot(e.x - x, e.y - y);
       if (d < bestD) {
         bestD = d;
@@ -660,7 +713,8 @@ export class GameEngine {
     let best: Rascal | null = null;
     let bestD = radius;
     for (const r of this.rascals) {
-      if (r === self) continue;
+      if (r === self || r.held) continue;
+      if (r.state === "SOCIAL_EMOTE" || r.state === "HELD") continue;
       const d = Math.hypot(r.x - self.x, r.y - self.y);
       if (d < bestD) {
         bestD = d;
@@ -670,23 +724,39 @@ export class GameEngine {
     return best;
   }
 
-  private gainResourceFrom(prop: WorldEntity) {
-    const res = this.save.resources;
-    if (prop.interact === "tree") {
-      res.wood += 1;
-      this.floatText(prop.x, prop.y, "+1 Wood");
-    } else if (prop.interact === "bush") {
-      res.berries += 1;
-      this.floatText(prop.x, prop.y, "+1 Berry");
-    } else if (prop.interact === "soil") {
-      res.crops += 1;
-      this.floatText(prop.x, prop.y, "+1 Crop");
-    } else if (prop.interact === "egg") {
-      res.gems += 1;
-      this.floatText(prop.x, prop.y, "+1 Gem");
-    }
+  private award(resource: "wood" | "berries" | "crops" | "gems", nx: number, ny: number) {
+    const labels = { wood: "+1 Wood", berries: "+1 Berries", crops: "+1 Crop", gems: "+1 Gem" };
+    this.save.resources[resource] += 1;
+    this.floatText(nx, ny, labels[resource]);
     writeSave(this.save);
     this.emit();
+  }
+
+  private choreParticles(r: Rascal, kind: RascalTask) {
+    const p = landToScreen(r.x, r.y, this.landX, this.landY, this.landW, this.landH);
+    if (kind === "cook") {
+      this.burst(p.x, p.y - 50, "rgba(220,220,220,0.9)", 4);
+    } else if (kind === "sweep") {
+      this.burst(p.x, p.y - 10, "#8fbc6a", 5);
+    } else if (kind === "bath") {
+      this.burst(p.x, p.y - 20, "#9fdfff", 8);
+    } else if (kind === "sleep") {
+      this.particles.push({
+        x: p.x + 12,
+        y: p.y - 40,
+        vx: 8,
+        vy: -18,
+        life: 1.4,
+        maxLife: 1.4,
+        color: "#dce6f5",
+        size: 12,
+        text: "Zzz",
+      });
+    } else if (kind === "eat") {
+      this.burst(p.x, p.y - 30, "#e0b44a", 5);
+    } else if (kind === "farm") {
+      this.burst(p.x, p.y - 15, "#c4a574", 4);
+    }
   }
 
   private floatText(nx: number, ny: number, text: string) {
@@ -752,13 +822,16 @@ export class GameEngine {
     }
     this.particles = this.particles.filter((p) => p.life > 0);
 
-    // Passive income trickle
-    if (Math.random() < dt * 0.08) {
-      const workers = this.rascals.filter((r) => r.state === "GATHER_OR_FARM");
-      if (workers.length) {
+    // Passive income trickle from active chore workers
+    if (Math.random() < dt * 0.06) {
+      const workers = this.rascals.filter(
+        (r) => r.state === "CHORE" || r.state === "HAUL"
+      );
+      if (workers.length && Math.random() < 0.25) {
         const w = workers[0];
-        const prop = this.entities.find((e) => e.id === w.interactWith);
-        if (prop) this.gainResourceFrom(prop);
+        if (w.task === "bush") this.award("berries", w.x, w.y);
+        else if (w.task === "tree") this.award("wood", w.x, w.y);
+        else if (w.task === "farm") this.award("crops", w.x, w.y);
       }
     }
   }
@@ -767,7 +840,7 @@ export class GameEngine {
   private syncAiTargetToEntity(r: Rascal) {
     if (!r.interactWith) return;
     const ent = this.entities.find((e) => e.id === r.interactWith);
-    if (!ent) return;
+    if (!ent || ent.hidden) return;
     if (!r.target) r.target = { x: ent.x, y: ent.y };
     else {
       r.target.x = ent.x;
@@ -778,9 +851,209 @@ export class GameEngine {
   private pickTaskEntity(
     kinds: NonNullable<WorldEntity["interact"]>[]
   ): WorldEntity | undefined {
-    const pool = this.entities.filter((e) => kinds.includes(e.interact!));
+    const pool = this.entities.filter((e) => e.interact && kinds.includes(e.interact) && !e.hidden);
     if (!pool.length) return undefined;
     return pool[Math.floor(Math.random() * pool.length)];
+  }
+
+  private gainXp(r: Rascal, amount: number) {
+    r.xp += amount;
+    if (r.xp > r.level * 20) {
+      r.level += 1;
+      this.startPoseChain(r, [Pose.CELEBRATE, Pose.JUMP_CHEER], "click", 0.55);
+      this.burstNorm(r.x, r.y, "#e0b44a", 12);
+    }
+  }
+
+  private finishIdle(r: Rascal) {
+    this.clearHideProp(r);
+    r.state = "WANDER_PATH";
+    r.interactWith = null;
+    r.socialWith = null;
+    r.task = null;
+    r.taskStep = 0;
+    r.target = null;
+    r.sprint = false;
+    r.poseChain = [];
+    r.pose = Pose.IDLE;
+  }
+
+  private onArriveAtStation(r: Rascal) {
+    const prop = this.entities.find((e) => e.id === r.interactWith);
+    if (!prop) {
+      // Social meetup?
+      const friend = this.nearestRascal(r, 0.06);
+      if (friend && friend.state === "WANDER_PATH") this.beginSocial(r, friend);
+      else this.finishIdle(r);
+      return;
+    }
+
+    if (r.task === "farm" && prop.interact === "soil") {
+      r.state = "CHORE";
+      r.taskStep = 0;
+      r.pose = Pose.DIGGING;
+      r.poseTimer = 1.6;
+      prop.cropStage = 1;
+      this.choreParticles(r, "farm");
+      return;
+    }
+    if (r.task === "bush" && prop.interact === "bush") {
+      r.state = "CHORE";
+      r.taskStep = 0;
+      r.pose = Pose.CARRY_BERRIES;
+      r.poseTimer = 0.9;
+      return;
+    }
+    if (r.task === "tree" && prop.interact === "tree") {
+      r.state = "CHORE";
+      r.taskStep = 0;
+      r.pose = Pose.CARRY_LOGS;
+      r.poseTimer = 0.9;
+      this.audio.chop();
+      return;
+    }
+    if (r.task === "cook" || prop.interact === "kitchen") {
+      r.state = "CHORE";
+      r.task = "cook";
+      r.pose = Pose.COOKING;
+      r.poseTimer = 2.4;
+      this.choreParticles(r, "cook");
+      return;
+    }
+    if (r.task === "bath" || prop.interact === "tub") {
+      r.state = "CHORE";
+      r.task = "bath";
+      r.pose = Pose.BATHING;
+      r.poseTimer = 2.6;
+      prop.hidden = true;
+      r.hidePropId = prop.id;
+      this.audio.splash();
+      this.choreParticles(r, "bath");
+      return;
+    }
+    if (r.task === "sleep" || prop.interact === "bed" || prop.interact === "clubhouse") {
+      r.state = "CHORE";
+      r.task = "sleep";
+      r.pose = Pose.SLEEPING;
+      r.poseTimer = 3.0;
+      this.choreParticles(r, "sleep");
+      return;
+    }
+    if (r.task === "eat" || prop.interact === "bench" || prop.interact === "campfire" || prop.interact === "picnic") {
+      r.state = "CHORE";
+      r.task = "eat";
+      r.taskStep = 0;
+      r.pose = Pose.EAT_BERRY;
+      r.poseTimer = 1.6;
+      this.choreParticles(r, "eat");
+      return;
+    }
+    if (prop.interact === "egg") {
+      r.state = "CHORE";
+      r.pose = Pose.SURPRISED;
+      r.poseTimer = 1.2;
+      this.award("gems", prop.x, prop.y);
+      return;
+    }
+    if (prop.interact === "barn") {
+      r.state = "CHORE";
+      r.pose = Pose.WIPE_SWEAT;
+      r.poseTimer = 1.2;
+      return;
+    }
+    // Generic building visit
+    r.state = "CHORE";
+    r.pose = Pose.WAVE_HELLO;
+    r.poseTimer = 1.4;
+  }
+
+  private advanceChore(r: Rascal, dt: number) {
+    if (Math.random() < dt * 1.2) this.choreParticles(r, r.task);
+    if (r.poseTimer > 0) return;
+
+    if (r.task === "farm") {
+      const soil = this.entities.find((e) => e.id === r.interactWith);
+      if (r.taskStep === 0) {
+        // Digging done → watering
+        if (soil) soil.cropStage = 2;
+        r.taskStep = 1;
+        r.pose = Pose.WATERING;
+        r.poseTimer = 1.5;
+        this.choreParticles(r, "farm");
+        return;
+      }
+      if (r.taskStep === 1) {
+        // Watered → ripe, haul crop to barn
+        if (soil) soil.cropStage = 3;
+        const barn = this.findLandmark("barn");
+        r.taskStep = 2;
+        r.state = "HAUL";
+        r.pose = Pose.CARRY_BERRIES;
+        r.interactWith = barn?.id ?? null;
+        r.target = barn ? { x: barn.x, y: barn.y } : null;
+        r.sprint = false;
+        if (!barn) {
+          this.award("crops", r.x, r.y);
+          this.gainXp(r, 3);
+          this.finishIdle(r);
+        }
+        return;
+      }
+    }
+
+    if (r.task === "bush" || r.task === "tree") {
+      const barn = this.findLandmark("barn");
+      r.state = "HAUL";
+      r.pose = r.task === "bush" ? Pose.CARRY_BERRIES : Pose.CARRY_LOGS;
+      r.interactWith = barn?.id ?? null;
+      r.target = barn ? { x: barn.x, y: barn.y } : null;
+      if (!barn) {
+        this.award(r.task === "bush" ? "berries" : "wood", r.x, r.y);
+        r.pose = Pose.WIPE_SWEAT;
+        r.poseTimer = 1.1;
+        r.state = "CHORE";
+        r.taskStep = 99;
+      }
+      return;
+    }
+
+    if (r.task === "eat") {
+      if (r.taskStep === 0) {
+        r.taskStep = 1;
+        r.pose = Math.random() < 0.5 ? Pose.LAUGH : Pose.HAPPY_DANCE;
+        r.poseTimer = 1.4;
+        return;
+      }
+      this.gainXp(r, 2);
+      this.finishIdle(r);
+      return;
+    }
+
+    if (r.taskStep === 99) {
+      this.gainXp(r, 3);
+      this.finishIdle(r);
+      return;
+    }
+
+    if (r.task === "cook" || r.task === "bath" || r.task === "sleep" || r.task === "sweep") {
+      this.gainXp(r, 2);
+      this.finishIdle(r);
+      return;
+    }
+
+    this.finishIdle(r);
+  }
+
+  private onArriveHaul(r: Rascal) {
+    if (r.task === "bush") this.award("berries", r.x, r.y);
+    else if (r.task === "tree") this.award("wood", r.x, r.y);
+    else if (r.task === "farm") this.award("crops", r.x, r.y);
+    r.state = "CHORE";
+    r.pose = Pose.WIPE_SWEAT;
+    r.poseTimer = 1.2;
+    r.taskStep = 99;
+    r.target = null;
+    this.choreParticles(r, r.task);
   }
 
   private updateRascal(r: Rascal, dt: number) {
@@ -789,129 +1062,152 @@ export class GameEngine {
     r.squash += (1 - r.squash) * Math.min(1, dt * 8);
     if (r.held) return;
 
-    // While walking/working toward a station, chase its current coords
-    if (r.interactWith && (r.state === "WANDER_PATH" || r.state === "GATHER_OR_FARM" || r.state === "USE_PROP")) {
-      this.syncAiTargetToEntity(r);
-    }
-
-    if (r.level >= 5 && r.poseTimer <= 0 && Math.random() < dt * 0.02) {
-      r.pose = POSE.crown;
-      r.poseTimer = 1.5;
-    }
-
-    if (r.state === "USE_PROP" || r.state === "SOCIAL_EMOTE" || r.state === "TRIP") {
-      if (r.poseTimer <= 0) {
-        r.state = "WANDER_PATH";
-        r.interactWith = null;
-        r.socialWith = null;
-        r.target = null;
+    if (r.state === "POSE_CHAIN") {
+      if (r.poseTimer > 0) return;
+      r.poseChain.shift();
+      if (r.poseChain.length) {
+        r.pose = r.poseChain[0];
+        r.poseTimer = r.task === "trip_recover" ? 0.65 : 0.45;
+        return;
       }
+      this.finishIdle(r);
       return;
     }
 
-    if (r.state === "GATHER_OR_FARM") {
-      if (r.poseTimer <= 0) {
-        r.state = "WANDER_PATH";
-        r.interactWith = null;
-        r.target = null;
-        r.xp += 3;
-        if (r.xp > r.level * 20) {
-          r.level += 1;
-          r.pose = POSE.crown;
-          r.poseTimer = 1.5;
-          this.burstNorm(r.x, r.y, "#e0b44a", 12);
-        }
-      }
+    if (r.state === "SOCIAL_EMOTE" || r.state === "TRIP") {
+      if (r.poseTimer <= 0) this.finishIdle(r);
       return;
     }
 
-    // Chance to start gather / prop / building visit / social
-    if (!r.target && Math.random() < dt * 0.35) {
+    if (r.state === "CHORE") {
+      this.advanceChore(r, dt);
+      return;
+    }
+
+    if (r.state === "HAUL" || r.state === "WANDER_PATH") {
+      if (r.interactWith && r.state === "WANDER_PATH") this.syncAiTargetToEntity(r);
+      if (r.interactWith && r.state === "HAUL") this.syncAiTargetToEntity(r);
+    }
+
+    // Pick a new task when idle
+    if (r.state === "WANDER_PATH" && !r.target && Math.random() < dt * 0.38) {
       const roll = Math.random();
-      if (roll < 0.22) {
-        // CHOP_WOOD / PICK_BERRY / FARM_CROP / egg
-        const prop = this.pickTaskEntity(["tree", "bush", "soil", "egg"]);
-        if (prop) {
-          r.target = { x: prop.x, y: prop.y };
-          r.interactWith = prop.id;
-          r.state = "WANDER_PATH";
+      if (roll < 0.18) {
+        const soil = this.pickTaskEntity(["soil"]);
+        if (soil) this.beginStationVisit(r, soil, false);
+      } else if (roll < 0.32) {
+        const bush = this.pickTaskEntity(["bush"]);
+        if (bush) this.beginStationVisit(r, bush, false);
+      } else if (roll < 0.44) {
+        const tree = this.pickTaskEntity(["tree"]);
+        if (tree) this.beginStationVisit(r, tree, false);
+      } else if (roll < 0.54) {
+        const kitchen = this.pickTaskEntity(["kitchen"]);
+        if (kitchen) this.beginStationVisit(r, kitchen, false);
+      } else if (roll < 0.64) {
+        const prop = this.pickTaskEntity(["tub", "bed", "clubhouse"]);
+        if (prop) this.beginStationVisit(r, prop, false);
+      } else if (roll < 0.74) {
+        const prop = this.pickTaskEntity(["bench", "campfire", "picnic"]);
+        if (prop) this.beginStationVisit(r, prop, false);
+      } else if (roll < 0.8) {
+        // Sweep along paths
+        r.task = "sweep";
+        r.state = "CHORE";
+        r.pose = Pose.SWEEPING;
+        r.poseTimer = 1.8;
+        this.choreParticles(r, "sweep");
+      } else if (roll < 0.88) {
+        const friend = this.nearestRascal(r, 0.28);
+        if (friend) {
+          r.target = { x: friend.x, y: friend.y };
+          r.interactWith = null;
+          r.task = "social";
         }
-      } else if (roll < 0.42) {
-        // TAKE_BATH / SLEEP_NEST / sit / eat
-        const prop = this.pickTaskEntity(["tub", "bed", "bench", "campfire", "picnic"]);
-        if (prop) {
-          r.target = { x: prop.x, y: prop.y };
-          r.interactWith = prop.id;
-        }
-      } else if (roll < 0.55) {
-        // VISIT_BUILDING
-        const bldg = this.pickTaskEntity(["building"]);
-        if (bldg) {
-          r.target = { x: bldg.x, y: bldg.y };
-          r.interactWith = bldg.id;
-        }
-      } else if (roll < 0.65) {
-        const friend = this.nearestRascal(r, 0.25);
-        if (friend) r.target = { x: friend.x, y: friend.y };
       } else {
         const wander = this.clampOnIsland(
           0.2 + Math.random() * 0.6,
           0.2 + Math.random() * 0.55
         );
         r.target = wander;
+        r.task = null;
+        r.interactWith = null;
+      }
+    }
+
+    // Passing social wave
+    if (r.state === "WANDER_PATH" && r.target && r.task !== "social") {
+      const near = this.nearestRascal(r, 0.045);
+      if (near && near.state === "WANDER_PATH" && Math.random() < dt * 0.15) {
+        this.beginSocial(r, near);
+        return;
       }
     }
 
     if (!r.target) {
-      r.pose = POSE.walk;
+      if (r.state === "WANDER_PATH") {
+        r.vx = 0;
+        r.vy = 0;
+        r.pose = Pose.IDLE;
+      }
       return;
     }
 
     const dx = r.target.x - r.x;
     const dy = r.target.y - r.y;
     const dist = Math.hypot(dx, dy);
-    const speed = Math.random() < 0.02 ? 0.22 : 0.12;
-    if (speed > 0.18 && Math.random() < dt * 0.4) {
-      r.state = "TRIP";
-      r.pose = POSE.trip;
-      r.poseTimer = 0.8;
-      r.target = null;
+    const sprinting = r.sprint || r.state === "HAUL" && dist > 0.12;
+    const speed = sprinting ? 0.22 : 0.12;
+
+    // 5% chance during sprint to trip → dizzy → shy
+    if (sprinting && dist > 0.05 && Math.random() < dt * 0.05) {
+      r.sprint = false;
+      this.startPoseChain(
+        r,
+        [Pose.TRIP_FALL, Pose.DIZZY_STARS, Pose.SHY],
+        "trip_recover",
+        0.55
+      );
       return;
     }
 
-    if (dist < 0.02) {
-      const prop = this.entities.find((e) => e.id === r.interactWith);
-      if (prop && ["tree", "bush", "soil", "egg"].includes(prop.interact || "")) {
-        r.state = "GATHER_OR_FARM";
-        r.pose = this.poseForInteract(prop.interact);
-        r.poseTimer = 2 + Math.random();
-        this.gainResourceFrom(prop);
-      } else if (prop) {
-        r.state = "USE_PROP";
-        r.pose = this.poseForInteract(prop.interact);
-        r.poseTimer = 2 + Math.random();
+    if (dist < 0.022) {
+      r.vx = 0;
+      r.vy = 0;
+      r.target = null;
+      if (r.state === "HAUL") {
+        this.onArriveHaul(r);
+      } else if (r.task === "social") {
+        const friend = this.nearestRascal(r, 0.08);
+        if (friend) this.beginSocial(r, friend);
+        else this.finishIdle(r);
+      } else if (r.interactWith) {
+        this.onArriveAtStation(r);
       } else {
-        const friend = this.nearestRascal(r, 0.06);
-        if (friend && friend.state === "WANDER_PATH") {
-          r.state = "SOCIAL_EMOTE";
-          friend.state = "SOCIAL_EMOTE";
-          r.pose = POSE.wave;
-          friend.pose = POSE.heart;
-          r.poseTimer = 2;
-          friend.poseTimer = 2;
-        }
+        r.sprint = false;
+        r.pose = Pose.IDLE;
       }
-      r.target = null;
       return;
     }
 
-    r.x += (dx / dist) * speed * dt;
-    r.y += (dy / dist) * speed * dt;
+    const stepX = (dx / dist) * speed * dt;
+    const stepY = (dy / dist) * speed * dt;
+    r.x += stepX;
+    r.y += stepY;
     const feet = this.clampOnIsland(r.x, r.y);
     r.x = feet.x;
     r.y = feet.y;
-    r.facing = dx >= 0 ? 1 : -1;
-    r.pose = speed > 0.18 ? POSE.dash : Math.sin(this.time * 8 + r.x * 10) > 0 ? POSE.walk : POSE.hop;
+    r.vx = stepX / Math.max(dt, 1e-4);
+    r.vy = stepY / Math.max(dt, 1e-4);
+
+    if (r.state === "HAUL") {
+      r.pose = r.task === "tree" ? Pose.CARRY_LOGS : Pose.CARRY_BERRIES;
+      r.facing = dx >= 0 ? 1 : -1;
+    } else {
+      const gait = poseFromVelocity(r.vx, r.vy, sprinting);
+      r.pose = gait.pose;
+      r.facing = gait.facing;
+    }
   }
 
   private nightTarget() {
@@ -1064,6 +1360,7 @@ export class GameEngine {
   }
 
   private drawEntity(e: WorldEntity, night: number) {
+    if (e.hidden) return;
     const spr = manifest.worldSprites[e.spriteId as keyof typeof manifest.worldSprites];
     if (!spr) return;
     const img = this.textures.get(spr.src);

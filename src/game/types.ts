@@ -2,13 +2,44 @@ export type IslandId = "meadow" | "lagoon" | "snack" | "retro" | "hollow";
 
 export type RascalState =
   | "WANDER_PATH"
-  | "GATHER_OR_FARM"
+  | "CHORE"
+  | "HAUL"
   | "USE_PROP"
   | "SOCIAL_EMOTE"
+  | "POSE_CHAIN"
   | "TRIP"
   | "HELD";
 
+export type RascalTask =
+  | "farm"
+  | "bush"
+  | "tree"
+  | "cook"
+  | "sweep"
+  | "bath"
+  | "sleep"
+  | "eat"
+  | "social"
+  | "click"
+  | "trip_recover"
+  | null;
+
 export type EntityKind = "building" | "prop" | "crop" | "clutter" | "rascal";
+
+export type InteractKind =
+  | "tub"
+  | "bed"
+  | "bench"
+  | "campfire"
+  | "picnic"
+  | "tree"
+  | "bush"
+  | "soil"
+  | "egg"
+  | "building"
+  | "kitchen"
+  | "barn"
+  | "clubhouse";
 
 export interface Vec2 {
   x: number;
@@ -24,8 +55,10 @@ export interface WorldEntity {
   scale: number;
   footY: number;
   movable: boolean;
-  interact?: "tub" | "bed" | "bench" | "campfire" | "picnic" | "tree" | "bush" | "soil" | "egg" | "building";
+  interact?: InteractKind;
   cropStage?: number;
+  /** Temporarily hide prop (e.g. empty tub while Rascal bathing sprite includes tub). */
+  hidden?: boolean;
 }
 
 export interface Rascal {
@@ -42,6 +75,12 @@ export interface Rascal {
   target: Vec2 | null;
   interactWith: string | null;
   socialWith: string | null;
+  task: RascalTask;
+  taskStep: number;
+  poseChain: number[];
+  sprint: boolean;
+  shake: number;
+  hidePropId: string | null;
   squash: number;
   held: boolean;
   xp: number;

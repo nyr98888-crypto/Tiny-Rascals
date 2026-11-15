@@ -154,6 +154,14 @@ export function buildIslandEntities(
   for (const lm of landmarks) {
     const id = `${island}-bldg-${lm.id}`;
     const pos = place(lm.pos, id, layoutOverrides);
+    const interact =
+      lm.id === "kitchen"
+        ? ("kitchen" as const)
+        : lm.id === "barn"
+          ? ("barn" as const)
+          : lm.id === "clubhouse"
+            ? ("clubhouse" as const)
+            : ("building" as const);
     entities.push({
       id,
       kind: "building",
@@ -163,7 +171,7 @@ export function buildIslandEntities(
       scale: lm.scale,
       footY: pos.y,
       movable: true,
-      interact: "building",
+      interact,
     });
   }
 

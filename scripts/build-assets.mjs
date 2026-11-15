@@ -20,6 +20,8 @@ const manifestPath = path.join(root, "src", "data", "assetManifest.json");
 
 const ISLAND_IDS = ["meadow", "lagoon", "snack", "retro", "hollow"];
 const FLOOD_TOLERANCE = 28;
+/** Pure-black pet sheet BG: only flood pixels with RGB <= this (keeps charcoal outlines). */
+const BLACK_BG_MAX = 14;
 const TRIM_MARGIN = 16;
 const LAND_MAX_W = 2048;
 const FRAME = 160;
@@ -30,11 +32,14 @@ const BOTTOM_PAD = 8;
 
 const POSE_NAMES = [
   // sheet1 chores 0-8
-  "water", "dig", "harvest", "chef", "sweep", "carry_logs", "wash_tub", "sleep", "yawn",
+  "watering", "digging", "carry_berries", "cooking", "sweeping", "carry_logs",
+  "bathing", "sleeping", "wipe_sweat",
   // sheet2 movement 9-17
-  "walk", "hop", "dash", "trip", "turn", "idle", "sit", "look", "stretch",
+  "walk_left", "walk_front", "walk_right", "crouch", "jump_cheer", "happy_dance",
+  "sprint_right", "trip_fall", "idle",
   // sheet3 emotes 18-26
-  "wave", "heart_eyes", "eat", "shocked", "grumpy", "crown", "cheer", "blush", "laugh",
+  "celebrate", "laugh", "eat_berry", "heart_eyes", "surprised", "shy",
+  "grumpy", "dizzy_stars", "wave_hello",
 ];
 
 /** @type {Record<string, string[]>} */
@@ -212,9 +217,15 @@ function rgbDist(r1, g1, b1, r2, g2, b2) {
   return Math.sqrt(dr * dr + dg * dg + db * db);
 }
 
+function isNearBlack(r, g, b, max = BLACK_BG_MAX) {
+  return r <= max && g <= max && b <= max;
+}
+
 /**
  * Outer-border 4-connected BFS flood-fill → set alpha=0 on background.
  * Mutates raw RGBA buffer. Returns mask of flooded pixels (Uint8Array 0/1).
+ * When the corner seed is pure black, uses a tight RGB<=14 channel test so
+ * dark charcoal outlines (crow, black-cat, etc.) are never eaten away.
  */
 function floodFillOuterBg(data, width, height, tolerance = FLOOD_TOLERANCE) {
   const channels = 4;
@@ -233,7 +244,7 @@ function floodFillOuterBg(data, width, height, tolerance = FLOOD_TOLERANCE) {
   avgA /= 4;
   if (avgA < 10) {
     // Already transparent — nothing to fill
-    return mask;
+    return { mask, blackSeed: false };
   }
 
   // Seed color from average of opaque corners
@@ -249,17 +260,23 @@ function floodFillOuterBg(data, width, height, tolerance = FLOOD_TOLERANCE) {
       count += 1;
     }
   }
-  if (count === 0) return mask;
+  if (count === 0) return { mask, blackSeed: false };
   sr = Math.round(sr / count);
   sg = Math.round(sg / count);
   sb = Math.round(sb / count);
+
+  const blackSeed = isNearBlack(sr, sg, sb, 20);
+  const matchesBg = (r, g, b) =>
+    blackSeed
+      ? isNearBlack(r, g, b, BLACK_BG_MAX)
+      : rgbDist(r, g, b, sr, sg, sb) <= tolerance;
 
   const queue = [];
   const trySeed = (x, y) => {
     const idx = y * width + x;
     if (visited[idx]) return;
     const i = idx * channels;
-    if (rgbDist(data[i], data[i + 1], data[i + 2], sr, sg, sb) <= tolerance) {
+    if (matchesBg(data[i], data[i + 1], data[i + 2])) {
       visited[idx] = 1;
       queue.push(idx);
     }
@@ -290,7 +307,7 @@ function floodFillOuterBg(data, width, height, tolerance = FLOOD_TOLERANCE) {
       const nidx = ny * width + nx;
       if (visited[nidx]) continue;
       const i = nidx * channels;
-      if (rgbDist(data[i], data[i + 1], data[i + 2], sr, sg, sb) <= tolerance) {
+      if (matchesBg(data[i], data[i + 1], data[i + 2])) {
         visited[nidx] = 1;
         queue.push(nidx);
       }
@@ -300,13 +317,16 @@ function floodFillOuterBg(data, width, height, tolerance = FLOOD_TOLERANCE) {
   for (let i = 0; i < n; i++) {
     if (mask[i]) data[i * channels + 3] = 0;
   }
-  return mask;
+  return { mask, blackSeed };
 }
 
-/** Soft feather (~1.5px) along flood boundary — lower alpha of near-edge content. */
-function featherBoundary(data, width, height, mask) {
+/**
+ * Soft feather along flood boundary.
+ * Black pet BGs use a tight 1px feather; other sheets keep ~1.5px.
+ */
+function featherBoundary(data, width, height, mask, softPx = 1.5) {
   const channels = 4;
-  const radius = 2;
+  const radius = Math.ceil(softPx);
   const out = Buffer.from(data);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
@@ -326,9 +346,9 @@ function featherBoundary(data, width, height, mask) {
           }
         }
       }
-      if (near && minD <= 1.5) {
+      if (near && minD <= softPx) {
         const i = idx * channels;
-        const factor = Math.max(0, Math.min(1, (minD - 0.25) / 1.25));
+        const factor = Math.max(0, Math.min(1, (minD - 0.2) / Math.max(0.5, softPx)));
         out[i + 3] = Math.round(out[i + 3] * factor);
       }
     }
@@ -377,8 +397,8 @@ async function processIsland(id) {
   const file = path.join(worldDir, match);
 
   const { data, width, height } = await loadRgba(file);
-  const mask = floodFillOuterBg(data, width, height);
-  featherBoundary(data, width, height, mask);
+  const { mask, blackSeed } = floodFillOuterBg(data, width, height);
+  featherBoundary(data, width, height, mask, blackSeed ? 1 : 1.5);
 
   const bbox = contentBBox(data, width, height);
   if (!bbox) throw new Error(`Island empty after fill: ${id}`);
@@ -460,8 +480,8 @@ async function processSheetCell(cellData, cellW, cellH) {
   avgA /= 4;
 
   if (avgA > 240) {
-    const mask = floodFillOuterBg(cellData, cellW, cellH);
-    featherBoundary(cellData, cellW, cellH, mask);
+    const { mask, blackSeed } = floodFillOuterBg(cellData, cellW, cellH);
+    featherBoundary(cellData, cellW, cellH, mask, blackSeed ? 1 : 1.5);
   }
 
   const bbox = contentBBox(cellData, cellW, cellH);
@@ -618,6 +638,20 @@ async function processRascal(id) {
       const col = i % 3;
       const row = Math.floor(i / 3);
       const cell = await extractCell(data, width, height, col, row, cellW, cellH);
+      // Remove pure-black sheet backgrounds; tight RGB<=14 keeps dark outlines
+      const corners = [
+        0,
+        (cell.width - 1) * 4,
+        (cell.height - 1) * cell.width * 4,
+        ((cell.height - 1) * cell.width + (cell.width - 1)) * 4,
+      ];
+      let avgA = 0;
+      for (const ci of corners) avgA += cell.data[ci + 3];
+      avgA /= 4;
+      if (avgA > 200) {
+        const { mask, blackSeed } = floodFillOuterBg(cell.data, cell.width, cell.height);
+        featherBoundary(cell.data, cell.width, cell.height, mask, blackSeed ? 1 : 1.5);
+      }
       const bbox = contentBBox(cell.data, cell.width, cell.height);
       let spriteBuf;
       if (!bbox) {
