@@ -95,6 +95,8 @@ export interface Resources {
   wood: number;
   berries: number;
   crops: number;
+  /** a4 Tokens/Stone */
+  tokens: number;
   gems: number;
 }
 
@@ -108,7 +110,7 @@ export interface IslandProgress {
 }
 
 export interface GameSave {
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   activeIsland: IslandId;
   dayNight: number;
   manualNight: boolean | null;
@@ -137,12 +139,19 @@ export interface Particle {
   text?: string;
 }
 
-export const ISLAND_ORDER: IslandId[] = ["meadow", "lagoon", "snack", "retro", "hollow"];
+/** Switcher order: a4 · a2 · a1 · a3 · a5 */
+export const ISLAND_ORDER: IslandId[] = [
+  "retro",
+  "lagoon",
+  "meadow",
+  "snack",
+  "hollow",
+];
 
 export const ISLAND_LABELS: Record<IslandId, string> = {
-  meadow: "Meadow",
-  lagoon: "Lagoon",
-  snack: "Snack",
-  retro: "Retro",
-  hollow: "Hollow",
+  retro: "A4",
+  lagoon: "A2",
+  meadow: "A1 Meadow",
+  snack: "A3",
+  hollow: "A5",
 };

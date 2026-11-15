@@ -59,10 +59,7 @@ export function defaultSave(starterPets: string[]): GameSave {
     for (let k = 0; k < perIsland; k++) {
       const petId = picks[(ii * perIsland + k) % picks.length] ?? picks[0];
       if (!petId) continue;
-      const feet =
-        island === "meadow"
-          ? meadowSpawnPoint(k)
-          : { x: 0.32 + (k % 3) * 0.12, y: 0.48 + Math.floor(k / 3) * 0.1 };
+      const feet = meadowSpawnPoint(k);
       spawned[island].push({
         petId,
         x: feet.x,
@@ -74,11 +71,11 @@ export function defaultSave(starterPets: string[]): GameSave {
   });
 
   return {
-    version: 7,
+    version: 8,
     activeIsland: "meadow",
     dayNight: 0.25,
     manualNight: null,
-    resources: { wood: 12, berries: 8, crops: 4, gems: 0 },
+    resources: { wood: 12, berries: 8, crops: 4, tokens: 3, gems: 0 },
     islands,
     discovered: [...new Set(Object.values(spawned).flatMap((list) => list.map((s) => s.petId)))],
     spawned,
@@ -95,7 +92,7 @@ export function loadSave(starterPets: string[]): GameSave {
     const raw = localStorage.getItem(KEY);
     if (!raw) return defaultSave(starterPets);
     const parsed = JSON.parse(raw) as GameSave & { clutterOffsets?: Record<string, Vec2> };
-    if (![1, 2, 3, 4, 5, 6, 7].includes(parsed.version)) return defaultSave(starterPets);
+    if (![1, 2, 3, 4, 5, 6, 7, 8].includes(parsed.version)) return defaultSave(starterPets);
 
     if (!parsed.layoutOverrides) parsed.layoutOverrides = emptyLayouts();
     for (const id of ISLAND_ORDER) {
@@ -180,9 +177,23 @@ export function loadSave(starterPets: string[]): GameSave {
       }
       parsed.spawned.meadow = list;
     }
-    parsed.version = 7;
-    // Always treat Meadow as the Level 1 home world if somehow unset
+    // v7→v8: a2–a5 chain maps + tokens resource; keep a1 Meadow as home
+    if (parsed.version < 8) {
+      if (typeof parsed.resources.tokens !== "number") parsed.resources.tokens = 0;
+      parsed.activeIsland = "meadow";
+      parsed.islands.meadow.unlocked = true;
+      for (const id of ISLAND_ORDER) {
+        if (!parsed.spawned[id]) parsed.spawned[id] = [];
+        parsed.spawned[id].forEach((s, k) => {
+          const feet = meadowSpawnPoint(k);
+          s.x = feet.x;
+          s.y = feet.y;
+        });
+      }
+    }
+    parsed.version = 8;
     if (!parsed.activeIsland) parsed.activeIsland = "meadow";
+    if (typeof parsed.resources.tokens !== "number") parsed.resources.tokens = 0;
 
     applyOfflineIdle(parsed);
     return parsed;
@@ -205,6 +216,7 @@ function applyOfflineIdle(save: GameSave) {
   save.resources.wood += Math.floor(hours * rate);
   save.resources.berries += Math.floor(hours * rate * 0.8);
   save.resources.crops += Math.floor(hours * rate * 0.5);
+  save.resources.tokens += Math.floor(hours * rate * 0.35);
   save.resources.gems += Math.floor(hours * 0.15);
 }
 
@@ -213,6 +225,7 @@ export function canAfford(res: Resources, cost: Partial<Resources>) {
     res.wood >= (cost.wood ?? 0) &&
     res.berries >= (cost.berries ?? 0) &&
     res.crops >= (cost.crops ?? 0) &&
+    res.tokens >= (cost.tokens ?? 0) &&
     res.gems >= (cost.gems ?? 0)
   );
 }
@@ -221,20 +234,31 @@ export function spend(res: Resources, cost: Partial<Resources>) {
   res.wood -= cost.wood ?? 0;
   res.berries -= cost.berries ?? 0;
   res.crops -= cost.crops ?? 0;
+  res.tokens -= cost.tokens ?? 0;
   res.gems -= cost.gems ?? 0;
 }
 
+/** Upgrades pull from all 5 area resources. */
 export const UPGRADE_COSTS = {
-  building: { wood: 20, berries: 10, crops: 5, gems: 0 },
-  prop: { wood: 12, berries: 8, crops: 4, gems: 0 },
-  crop: { wood: 8, berries: 12, crops: 6, gems: 0 },
-  clutter: { wood: 10, berries: 6, crops: 4, gems: 0 },
-  dock: { wood: 30, berries: 15, crops: 10, gems: 1 },
+  building: { wood: 16, berries: 10, crops: 6, tokens: 4, gems: 0 },
+  prop: { wood: 10, berries: 8, crops: 5, tokens: 3, gems: 0 },
+  crop: { wood: 8, berries: 10, crops: 8, tokens: 2, gems: 0 },
+  clutter: { wood: 8, berries: 6, crops: 4, tokens: 3, gems: 0 },
+  dock: { wood: 24, berries: 12, crops: 10, tokens: 8, gems: 1 },
 } as const;
 
+/** Dock repair unlocks open neighbors in the a4–a2–a1–a3–a5 chain. */
 export const NEXT_ISLAND: Partial<Record<IslandId, IslandId>> = {
-  meadow: "lagoon",
-  lagoon: "snack",
-  snack: "retro",
-  retro: "hollow",
+  meadow: "snack",
+  lagoon: "retro",
+  snack: "hollow",
+  retro: "lagoon",
+};
+
+export const UNLOCK_NEIGHBORS: Partial<Record<IslandId, IslandId[]>> = {
+  meadow: ["lagoon", "snack"],
+  lagoon: ["retro", "meadow"],
+  snack: ["meadow", "hollow"],
+  retro: ["lagoon"],
+  hollow: ["snack"],
 };

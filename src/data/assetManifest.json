@@ -7,24 +7,24 @@
       "h": 3072
     },
     "lagoon": {
-      "src": "/world/land-lagoon.jpg",
+      "src": "/world/a2.jpg",
       "w": 5504,
       "h": 3072
     },
     "snack": {
-      "src": "/assets-built/lands/land-snack.png",
-      "w": 2048,
-      "h": 1143
+      "src": "/world/a3.jpg",
+      "w": 5504,
+      "h": 3072
     },
     "retro": {
-      "src": "/assets-built/lands/land-retro.png",
-      "w": 2048,
-      "h": 1143
+      "src": "/world/a4.jpg",
+      "w": 5504,
+      "h": 3072
     },
     "hollow": {
-      "src": "/assets-built/lands/land-hollow.png",
-      "w": 2048,
-      "h": 1143
+      "src": "/world/a5.jpg",
+      "w": 5504,
+      "h": 3072
     }
   },
   "backdrops": {

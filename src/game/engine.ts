@@ -8,14 +8,26 @@ import {
 } from "./layouts";
 import { Pose, poseFromVelocity } from "./poses";
 import { resolvePoseCell } from "./spriteMap";
-import { loadSave, writeSave, canAfford, spend, UPGRADE_COSTS, NEXT_ISLAND } from "./save";
+import {
+  loadSave,
+  writeSave,
+  canAfford,
+  spend,
+  UPGRADE_COSTS,
+  UNLOCK_NEIGHBORS,
+} from "./save";
 import { TextureManager } from "./textures";
 import {
-  BIOME_PORTALS,
-  nearPortal,
+  AREA_LINKS,
+  AREA_RESOURCE,
+  RESOURCE_LABELS,
+  nearOpenPortal,
+  portalDestination,
+  portalSideAt,
   roadPath,
   SHARED_MAP,
   usesSharedMapGraph,
+  type AreaResource,
 } from "./mapGraph";
 import { clampToWalkBounds, depthScaleAtY, randomPointInClearing } from "./walkBounds";
 import type {
@@ -464,8 +476,9 @@ export class GameEngine {
       if (prog.dockRepaired) return false;
       spend(this.save.resources, cost);
       prog.dockRepaired = true;
-      const next = NEXT_ISLAND[island];
-      if (next) this.save.islands[next].unlocked = true;
+      for (const n of UNLOCK_NEIGHBORS[island] ?? []) {
+        this.save.islands[n].unlocked = true;
+      }
       this.attractNewRascal();
     } else {
       const key =
@@ -827,34 +840,105 @@ export class GameEngine {
     return true;
   }
 
-  /** Walk off left/right portal → hop Meadow ↔ Lagoon along the road. */
-  private tryBiomePortal(r: Rascal) {
+  /**
+   * Autonomous road-exit commute into an adjacent area.
+   * Never changes the player's active camera — only setIsland() does that.
+   */
+  private tryAreaPortal(r: Rascal) {
     const island = this.save.activeIsland;
-    if (island !== "meadow" && island !== "lagoon") return;
-    if (!nearPortal(island, r.x, r.y)) return;
-    const portal = BIOME_PORTALS[island];
-    const dest = this.save.islands[portal.to];
-    if (!dest.unlocked && !this.save.sandboxPreviewAll) return;
+    const side = portalSideAt(island, r.x, r.y);
+    if (!side) return;
+    const destId = portalDestination(island, side);
+    if (!destId) return;
+    if (!this.save.islands[destId].unlocked && !this.save.sandboxPreviewAll) return;
 
-    const enter = SHARED_MAP.nodes[portal.enterNode];
+    // Arrive on the opposite edge of the destination
+    const enterNode = side === "left" ? "portal_right" : "portal_left";
+    const enter = SHARED_MAP.nodes[enterNode];
+    const feet = clampToWalkBounds(enter.x, enter.y, destId);
+
     this.persistRascals();
-    // Remove from current island spawn list
-    this.save.spawned[island] = (this.save.spawned[island] || []).filter(
-      (s) => !(s.petId === r.petId && Math.hypot(s.x - r.x, s.y - r.y) < 0.08)
-    );
-    const feet = clampToWalkBounds(enter.x, enter.y, portal.to);
-    if (!this.save.spawned[portal.to]) this.save.spawned[portal.to] = [];
-    this.save.spawned[portal.to].push({
+    const live = this.save.spawned[island] || [];
+    let bestI = -1;
+    let bestD = Infinity;
+    for (let i = 0; i < live.length; i++) {
+      if (live[i].petId !== r.petId) continue;
+      const d = Math.hypot(live[i].x - r.x, live[i].y - r.y);
+      if (d < bestD) {
+        bestD = d;
+        bestI = i;
+      }
+    }
+    if (bestI >= 0) live.splice(bestI, 1);
+    this.save.spawned[island] = live;
+
+    if (!this.save.spawned[destId]) this.save.spawned[destId] = [];
+    this.save.spawned[destId].push({
       petId: r.petId,
       x: feet.x,
       y: feet.y,
       xp: r.xp,
       level: r.level,
     });
-    this.save.activeIsland = portal.to;
+
+    // Leave the active view — do NOT switch activeIsland / camera
+    this.rascals = this.rascals.filter((x) => x !== r);
     writeSave(this.save);
-    this.reloadIsland();
-    this.audio.chirp();
+    this.emit();
+  }
+
+  /**
+   * Background sim: Rascals on non-active areas quietly hop across open portals
+   * without ever changing the player's screen.
+   */
+  private tickBackgroundCommutes(dt: number) {
+    if (Math.random() > dt * 0.35) return;
+    const active = this.save.activeIsland;
+    for (const island of ISLAND_ORDER) {
+      if (island === active) continue;
+      const list = this.save.spawned[island];
+      if (!list?.length) continue;
+      if (Math.random() > 0.45) continue;
+      const idx = Math.floor(Math.random() * list.length);
+      const s = list[idx];
+      const links = AREA_LINKS[island];
+      const options: IslandId[] = [];
+      if (links.left) options.push(links.left);
+      if (links.right) options.push(links.right);
+      if (!options.length) continue;
+      const destId = options[Math.floor(Math.random() * options.length)];
+      if (!this.save.islands[destId].unlocked && !this.save.sandboxPreviewAll) continue;
+
+      const cameFromRight = links.left === destId;
+      const enterNode = cameFromRight ? "portal_right" : "portal_left";
+      const enter = SHARED_MAP.nodes[enterNode];
+      const feet = clampToWalkBounds(enter.x, enter.y, destId);
+      list.splice(idx, 1);
+      if (!this.save.spawned[destId]) this.save.spawned[destId] = [];
+      this.save.spawned[destId].push({
+        petId: s.petId,
+        x: feet.x,
+        y: feet.y,
+        xp: s.xp,
+        level: s.level,
+      });
+
+      // If they hopped INTO the active view, spawn them on screen
+      if (destId === active) {
+        this.rascals.push(
+          freshRascal(
+            `${destId}-rascal-${Date.now()}-${s.petId}`,
+            s.petId,
+            feet.x,
+            feet.y,
+            s.xp,
+            s.level
+          )
+        );
+        void this.loadActiveTextures();
+      }
+    }
+    writeSave(this.save);
   }
 
   private clearHideProp(r: Rascal) {
@@ -893,12 +977,22 @@ export class GameEngine {
     return best;
   }
 
-  private award(resource: "wood" | "berries" | "crops" | "gems", nx: number, ny: number) {
-    const labels = { wood: "+1 Wood", berries: "+1 Berries", crops: "+1 Crop", gems: "+1 Gem" };
-    this.save.resources[resource] += 1;
-    this.floatText(nx, ny, labels[resource]);
+  private award(resource: AreaResource | "wood" | "berries" | "crops" | "gems", nx: number, ny: number) {
+    // Prefer the active area's primary resource when chores complete
+    const key: AreaResource =
+      resource in this.save.resources
+        ? (resource as AreaResource)
+        : AREA_RESOURCE[this.save.activeIsland];
+    const label = RESOURCE_LABELS[key] ?? key;
+    this.save.resources[key] += 1;
+    this.floatText(nx, ny, `+1 ${label}`);
     writeSave(this.save);
     this.emit();
+  }
+
+  /** Award the resource tied to the current area (a1 Wood … a5 Gems). */
+  private awardAreaResource(nx: number, ny: number) {
+    this.award(AREA_RESOURCE[this.save.activeIsland], nx, ny);
   }
 
   private choreParticles(r: Rascal, kind: RascalTask) {
@@ -990,7 +1084,8 @@ export class GameEngine {
     this.landY = -this.landH / 2 + this.bob;
     this.clampCamera();
 
-    for (const r of this.rascals) this.updateRascal(r, dt);
+    for (const r of [...this.rascals]) this.updateRascal(r, dt);
+    this.tickBackgroundCommutes(dt);
 
     for (const p of this.particles) {
       p.life -= dt;
@@ -1007,9 +1102,9 @@ export class GameEngine {
       );
       if (workers.length && Math.random() < 0.25) {
         const w = workers[0];
-        if (w.task === "bush") this.award("berries", w.x, w.y);
-        else if (w.task === "tree") this.award("wood", w.x, w.y);
-        else if (w.task === "farm") this.award("crops", w.x, w.y);
+        if (w.task === "bush" || w.task === "tree" || w.task === "farm") {
+          this.awardAreaResource(w.x, w.y);
+        }
       }
     }
   }
@@ -1130,7 +1225,7 @@ export class GameEngine {
       r.state = "CHORE";
       r.pose = Pose.SURPRISED;
       r.poseTimer = 1.2;
-      this.award("gems", prop.x, prop.y);
+      this.awardAreaResource(prop.x, prop.y);
       return;
     }
     if (prop.interact === "barn") {
@@ -1171,7 +1266,7 @@ export class GameEngine {
         r.sprint = false;
         if (barn) this.setRoadTarget(r, barn.x, barn.y);
         else {
-          this.award("crops", r.x, r.y);
+          this.awardAreaResource(r.x, r.y);
           this.gainXp(r, 3);
           this.finishIdle(r);
         }
@@ -1187,7 +1282,7 @@ export class GameEngine {
       if (barn) this.setRoadTarget(r, barn.x, barn.y);
       else r.target = null;
       if (!barn) {
-        this.award(r.task === "bush" ? "berries" : "wood", r.x, r.y);
+        this.awardAreaResource(r.x, r.y);
         r.pose = Pose.WIPE_SWEAT;
         r.poseTimer = 1.1;
         r.state = "CHORE";
@@ -1224,9 +1319,9 @@ export class GameEngine {
   }
 
   private onArriveHaul(r: Rascal) {
-    if (r.task === "bush") this.award("berries", r.x, r.y);
-    else if (r.task === "tree") this.award("wood", r.x, r.y);
-    else if (r.task === "farm") this.award("crops", r.x, r.y);
+    if (r.task === "bush" || r.task === "tree" || r.task === "farm") {
+      this.awardAreaResource(r.x, r.y);
+    }
     r.state = "CHORE";
     r.pose = Pose.WIPE_SWEAT;
     r.poseTimer = 1.2;
@@ -1311,18 +1406,27 @@ export class GameEngine {
       }
     }
 
-    // Edge portal: commute Meadow ↔ Lagoon
+    // Edge portal: walk toward an open left/right road exit (camera stays put)
     if (
       r.state === "WANDER_PATH" &&
       !r.interactWith &&
       usesSharedMapGraph(this.save.activeIsland) &&
-      Math.random() < dt * 0.04
+      Math.random() < dt * 0.05
     ) {
-      const island = this.save.activeIsland as "meadow" | "lagoon";
-      const exit = SHARED_MAP.nodes[BIOME_PORTALS[island].exitNode];
-      this.setRoadTarget(r, exit.x, exit.y);
-      r.task = null;
-      r.sprint = true;
+      const links = AREA_LINKS[this.save.activeIsland];
+      const sides: ("left" | "right")[] = [];
+      if (links.left) sides.push("left");
+      if (links.right) sides.push("right");
+      if (sides.length) {
+        const side = sides[Math.floor(Math.random() * sides.length)];
+        const exit =
+          side === "left"
+            ? SHARED_MAP.nodes.portal_left
+            : SHARED_MAP.nodes.portal_right;
+        this.setRoadTarget(r, exit.x, exit.y);
+        r.task = null;
+        r.sprint = true;
+      }
     }
 
     // Passing social wave
@@ -1376,9 +1480,9 @@ export class GameEngine {
       } else if (r.interactWith) {
         this.onArriveAtStation(r);
       } else {
-        // Portal hop when finishing a road walk at the edge
-        if (nearPortal(this.save.activeIsland, r.x, r.y)) {
-          this.tryBiomePortal(r);
+        // Portal hop when finishing a road walk at an open edge (no camera switch)
+        if (nearOpenPortal(this.save.activeIsland, r.x, r.y)) {
+          this.tryAreaPortal(r);
           return;
         }
         r.sprint = false;
@@ -1608,10 +1712,18 @@ export class GameEngine {
     const size = 80 * depth;
     const footOffset = size * SPRITE_ANCHOR_Y;
 
-    // Crisp dark contact shadow under feet (anchorY = 0.95)
-    this.ctx.fillStyle = "rgba(0,0,0,0.38)";
+    // Soft oval contact shadow under feet
+    this.ctx.fillStyle = "rgba(0,0,0,0.28)";
     this.ctx.beginPath();
-    this.ctx.ellipse(p.x, p.y + 1, size * 0.32, Math.max(4, 5.5 * depth), 0, 0, Math.PI * 2);
+    this.ctx.ellipse(
+      p.x,
+      p.y + 2,
+      size * 0.34,
+      Math.max(3.5, 4.2 * depth),
+      0,
+      0,
+      Math.PI * 2
+    );
     this.ctx.fill();
 
     this.ctx.save();

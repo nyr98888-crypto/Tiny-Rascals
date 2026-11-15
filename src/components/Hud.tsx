@@ -56,16 +56,19 @@ export function Hud({ engine }: { engine: GameEngine | null }) {
       <div className="hud-top">
         <div className="brand">Tiny Rascals</div>
         <div className="panel resources">
-          <span>
+          <span title="A1 Meadow">
             Wood <strong>{save.resources.wood}</strong>
           </span>
-          <span>
+          <span title="A2">
             Berries <strong>{save.resources.berries}</strong>
           </span>
-          <span>
-            Crops <strong>{save.resources.crops}</strong>
+          <span title="A3 Treats">
+            Treats <strong>{save.resources.crops}</strong>
           </span>
-          <span>
+          <span title="A4 Tokens">
+            Tokens <strong>{save.resources.tokens ?? 0}</strong>
+          </span>
+          <span title="A5 Gems">
             Gems <strong>{save.resources.gems}</strong>
           </span>
         </div>
@@ -201,7 +204,9 @@ export function Hud({ engine }: { engine: GameEngine | null }) {
                     {label}: Tier {tier}/3
                   </span>
                   <button disabled={tier >= 3} onClick={() => engine.tryUpgrade(key)}>
-                    Upgrade ({UPGRADE_COSTS[key].wood}W/{UPGRADE_COSTS[key].berries}B)
+                    Upgrade ({UPGRADE_COSTS[key].wood}W/{UPGRADE_COSTS[key].berries}B/
+                    {UPGRADE_COSTS[key].crops}T/{UPGRADE_COSTS[key].tokens}K/
+                    {UPGRADE_COSTS[key].gems}G)
                   </button>
                 </div>
               ))}
@@ -211,7 +216,9 @@ export function Hud({ engine }: { engine: GameEngine | null }) {
                   disabled={prog.dockRepaired}
                   onClick={() => engine.tryUpgrade("dock")}
                 >
-                  Repair ({UPGRADE_COSTS.dock.wood}W + gem)
+                  Repair ({UPGRADE_COSTS.dock.wood}W/{UPGRADE_COSTS.dock.berries}B/
+                  {UPGRADE_COSTS.dock.crops}T/{UPGRADE_COSTS.dock.tokens}K/
+                  {UPGRADE_COSTS.dock.gems}G)
                 </button>
               </div>
             </div>
