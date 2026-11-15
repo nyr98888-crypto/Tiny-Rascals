@@ -78,9 +78,9 @@ export class GameEngine {
   /** Land texture pixel size (pre-isometric flatten). */
   landTexW = 2048;
   landTexH = 868;
-  /** Display size after ISO_Y flatten (islandScaleY = islandScaleX * 0.65). */
+  /** Display size at true 1:1 native aspect (islandScaleY === islandScaleX). */
   landW = 2048;
-  landH = 868 * ISO_Y;
+  landH = 868;
   landX = 0;
   landY = 0;
 
@@ -143,7 +143,7 @@ export class GameEngine {
       this.save.resources.gems += decoded.gems ?? 1;
       if (decoded.pet && !this.save.discovered.includes(decoded.pet)) {
         this.save.discovered.push(decoded.pet);
-        this.spawnPet(decoded.pet, 0.55, 0.86);
+        this.spawnPet(decoded.pet, 0.5, 0.43);
       }
       this.giftMessage = `Care package from ${decoded.from ?? "a friend"} arrived by boat!`;
       this.audio.gift();
@@ -268,7 +268,7 @@ export class GameEngine {
     }));
   }
 
-  spawnPet(petId: string, x = 0.5, y = 0.85) {
+  spawnPet(petId: string, x = 0.5, y = 0.43) {
     const island = this.save.activeIsland;
     const r = freshRascal(`${island}-rascal-${Date.now()}`, petId, x, y);
     r.pose = Pose.WAVE_HELLO;
@@ -338,19 +338,21 @@ export class GameEngine {
   }
 
   /**
-   * Opaque island ≈ 78% of land texture width. Target ~90% of viewport width
-   * so the island spans cloud-to-cloud; that fit is also the zoom-out floor.
+   * Fit the full oval island (incl. waterfalls / orbiting islets) inside ~80% of
+   * the viewport on both axes — balanced sky breathing room all around.
    */
   private computeFitZoom() {
     const w = Math.max(320, this.canvas.clientWidth || 1280);
-    const opaqueFrac = 0.78;
-    const widthFill = 0.9; // 88–92% band → 90%
-    return (widthFill * w) / Math.max(1, this.landW * opaqueFrac);
+    const h = Math.max(240, this.canvas.clientHeight || 720);
+    return Math.min(
+      (w * 0.8) / Math.max(1, this.landW),
+      (h * 0.8) / Math.max(1, this.landH)
+    );
   }
 
   private recomputeZoomLimits() {
     const fit = this.computeFitZoom();
-    // 1.0x = wide framed island (minZoom); close-ups up to 2.2x
+    // 1.0x = 80% framed island (minZoom floor); close-ups up to 2.2x
     this.minZoom = fit;
     this.maxZoom = fit * 2.2;
     this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || fit));
@@ -363,11 +365,11 @@ export class GameEngine {
     const fit = this.computeFitZoom();
     this.targetZoom = fit;
     this.zoom = fit;
-    // Frame around UV centerY ≈ 0.56 (above ocean horizon / dock)
+    // Center on the open oval plateau (≈ UV 0.5, 0.43)
     this.landX = -this.landW / 2;
     this.landY = -this.landH / 2;
     this.camX = this.landX + this.landW * 0.5;
-    this.camY = this.landY + this.landH * 0.56;
+    this.camY = this.landY + this.landH * 0.43;
     this.clampCamera();
   }
 
@@ -445,8 +447,8 @@ export class GameEngine {
     );
     if (!candidates.length) return;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    this.spawnPet(pick.id, 0.52, 0.87);
-    this.burst(0.52, 0.87, "#7dcea0", 14);
+    this.spawnPet(pick.id, 0.5, 0.43);
+    this.burst(0.5, 0.43, "#7dcea0", 14);
   }
 
   private bindInput() {
@@ -1180,8 +1182,8 @@ export class GameEngine {
         }
       } else {
         const wander = this.clampOnIsland(
-          0.2 + Math.random() * 0.6,
-          0.2 + Math.random() * 0.55
+          0.5 + (Math.random() - 0.5) * 0.6,
+          0.43 + (Math.random() - 0.5) * 0.34
         );
         r.target = wander;
         r.task = null;
@@ -1245,8 +1247,7 @@ export class GameEngine {
     }
 
     const stepX = (dx / dist) * speed * dt;
-    // Flatten vertical travel to match isometric tabletop plane (islandScaleY)
-    const stepY = (dy / dist) * speed * dt * ISO_Y;
+    const stepY = (dy / dist) * speed * dt * ISO_Y; // ISO_Y === 1 (native aspect)
     r.x += stepX;
     r.y += stepY;
     const feet = this.clampOnIsland(r.x, r.y);
@@ -1328,7 +1329,7 @@ export class GameEngine {
     ctx.scale(this.zoom, this.zoom);
     ctx.translate(-this.camX, -this.camY);
 
-    // Island terrain only — flattened tabletop (0.65). Sprites stay 1:1 unsquashed.
+    // Island at true 1:1 native aspect (no vertical squash)
     if (landImg) {
       ctx.drawImage(landImg, this.landX, this.landY, this.landW, this.landH);
     }

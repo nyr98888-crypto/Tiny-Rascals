@@ -41,17 +41,20 @@ export function defaultSave(starterPets: string[]): GameSave {
   for (const id of ISLAND_ORDER) spawned[id] = [];
   const picks = starterPets.slice(0, 8);
   picks.forEach((petId, i) => {
+    // Scatter across the open oval plateau (center ≈ 0.5, 0.43)
+    const col = i % 4;
+    const row = Math.floor(i / 4);
     spawned.meadow.push({
       petId,
-      x: 0.35 + (i % 4) * 0.1,
-      y: 0.55 + Math.floor(i / 4) * 0.08,
+      x: 0.38 + col * 0.08,
+      y: 0.36 + row * 0.08,
       xp: 0,
       level: 1,
     });
   });
 
   return {
-    version: 4,
+    version: 5,
     activeIsland: "meadow",
     dayNight: 0.25,
     manualNight: null,
@@ -72,7 +75,7 @@ export function loadSave(starterPets: string[]): GameSave {
     const raw = localStorage.getItem(KEY);
     if (!raw) return defaultSave(starterPets);
     const parsed = JSON.parse(raw) as GameSave & { clutterOffsets?: Record<string, Vec2> };
-    if (![1, 2, 3, 4].includes(parsed.version)) return defaultSave(starterPets);
+    if (![1, 2, 3, 4, 5].includes(parsed.version)) return defaultSave(starterPets);
 
     if (!parsed.layoutOverrides) parsed.layoutOverrides = emptyLayouts();
     for (const id of ISLAND_ORDER) {
@@ -97,7 +100,11 @@ export function loadSave(starterPets: string[]): GameSave {
         delete map[`${id}-clutter-7`];
       }
     }
-    parsed.version = 4;
+    // v4→v5: oval islands start clean — wipe layout overrides
+    if (parsed.version < 5) {
+      parsed.layoutOverrides = emptyLayouts();
+    }
+    parsed.version = 5;
 
     applyOfflineIdle(parsed);
     return parsed;

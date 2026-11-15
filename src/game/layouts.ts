@@ -121,7 +121,29 @@ function place(
   return off ? { x: off.x, y: off.y } : defaults;
 }
 
+/**
+ * Active island world entities. Islands start clean (Rascals only).
+ * Sprite pickers / POS / ENTITY_SCALE remain for the upcoming biome placement menu.
+ */
 export function buildIslandEntities(
+  _manifest: Manifest,
+  _island: IslandId,
+  _tiers: {
+    buildingTier: 1 | 2 | 3;
+    propTier: 1 | 2 | 3;
+    cropTier: 1 | 2 | 3;
+    clutterTier: 1 | 2 | 3;
+  },
+  _layoutOverrides: Record<string, { x: number; y: number }> = {}
+): WorldEntity[] {
+  return [];
+}
+
+/**
+ * Full default layout catalog (buildings, props, crops, clutter) — unused while
+ * islands are open-plateau only; kept for biome-specific placement UI.
+ */
+export function buildCatalogIslandEntities(
   manifest: Manifest,
   island: IslandId,
   tiers: {
@@ -175,7 +197,6 @@ export function buildIslandEntities(
     });
   }
 
-  // Harbor dock stays anchored — never movable / never overridden
   entities.push({
     id: `${island}-dock`,
     kind: "building",
@@ -271,10 +292,10 @@ export function buildIslandEntities(
   return entities;
 }
 
-/** FarmVille-style isometric tabletop flatten (islandScaleY / islandScaleX). */
-export const ISO_Y = 0.65;
+/** Native 1:1 island aspect — no vertical perspective squash. */
+export const ISO_Y = 1;
 
-/** World props/buildings/crops drawn ~24% smaller relative to the wide island. */
+/** World props/buildings/crops scale relative to the island (for placement menu). */
 export const ENTITY_SCALE = 0.76;
 
 export function landToScreen(

@@ -1,30 +1,30 @@
 {
-  "generatedAt": "2026-11-15T19:11:42.317Z",
+  "generatedAt": "2026-11-15T19:49:10.055Z",
   "lands": {
     "meadow": {
       "src": "/assets-built/lands/land-meadow.png",
       "w": 2048,
-      "h": 832
+      "h": 1529
     },
     "lagoon": {
       "src": "/assets-built/lands/land-lagoon.png",
       "w": 2048,
-      "h": 836
+      "h": 1548
     },
     "snack": {
       "src": "/assets-built/lands/land-snack.png",
       "w": 2048,
-      "h": 959
+      "h": 1721
     },
     "retro": {
       "src": "/assets-built/lands/land-retro.png",
       "w": 2048,
-      "h": 932
+      "h": 1708
     },
     "hollow": {
       "src": "/assets-built/lands/land-hollow.png",
       "w": 2048,
-      "h": 782
+      "h": 1576
     }
   },
   "backdrops": {
