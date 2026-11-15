@@ -1,0 +1,19 @@
+---
+description: Mandatory git checkpoint commit+push before any code/asset/layout edits
+alwaysApply: true
+---
+
+# Mandatory Git Backup Rule
+
+Before making **ANY** code, asset, or layout changes:
+
+1. Run `git status` and create a clean checkpoint commit of the current working state:
+   ```
+   git add -A
+   git commit -m "checkpoint: before <task-name>"
+   git push
+   ```
+2. Only after the push succeeds, start editing files.
+3. If anything breaks, revert immediately with `git reset --hard HEAD`.
+
+Do not skip this for "small" edits. If there is nothing to commit, still verify `git status` is clean and the branch is pushed before editing.
