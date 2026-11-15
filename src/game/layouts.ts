@@ -292,11 +292,8 @@ export function buildCatalogIslandEntities(
   return entities;
 }
 
-/**
- * God's-eye top-down: islandScaleY ≈ 1.10 × islandScaleX so the plateau
- * reads wide/open from above (taller world-Y projection).
- */
-export const ISO_Y = 1.1;
+/** Native terrain aspect — no vertical squash (islandScaleY === islandScaleX). */
+export const ISO_Y = 1;
 
 /** Bottom-center contact shadow / foot anchor on sprites (0 = top, 1 = bottom). */
 export const SPRITE_ANCHOR_Y = 0.95;

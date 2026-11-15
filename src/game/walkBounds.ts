@@ -1,67 +1,79 @@
 import type { IslandId, Vec2 } from "./types";
 
 /**
- * Expanded oval buildable/walkable plateau for god's-eye islands.
- * Fills the inner terrain up to the decorative rim; front-bottom lip pulled
- * inward (cy + ry stays above waterfalls).
+ * One-point perspective trapezoid on the rectangular terrain plateaus.
+ * Top (far horizon) narrower; bottom (front cliff) wider, inset from rim/falls.
+ *
+ * Default: top y≈0.28 width≈0.58; bottom y≈0.72 width≈0.76 (centered on x=0.5).
  */
-export const OVAL_PLATEAU = {
+export type TrapezoidBounds = {
+  topY: number;
+  bottomY: number;
+  topHalfW: number;
+  bottomHalfW: number;
+  cx: number;
+};
+
+export const TRAPEZOID_PLATEAU: TrapezoidBounds = {
   cx: 0.5,
-  cy: 0.4,
-  rx: 0.4,
-  ry: 0.26,
+  topY: 0.28,
+  bottomY: 0.72,
+  topHalfW: 0.58 / 2,
+  bottomHalfW: 0.76 / 2,
 };
 
-/** Per-island micro-tunes — same expanded oval family. */
-const ISLAND_OVALS: Record<IslandId, { cx: number; cy: number; rx: number; ry: number }> = {
-  meadow: { cx: 0.5, cy: 0.4, rx: 0.4, ry: 0.26 },
-  lagoon: { cx: 0.5, cy: 0.4, rx: 0.4, ry: 0.265 },
-  snack: { cx: 0.5, cy: 0.405, rx: 0.395, ry: 0.26 },
-  retro: { cx: 0.5, cy: 0.4, rx: 0.4, ry: 0.255 },
-  hollow: { cx: 0.5, cy: 0.405, rx: 0.39, ry: 0.26 },
+const ISLAND_TRAPS: Record<IslandId, TrapezoidBounds> = {
+  meadow: { ...TRAPEZOID_PLATEAU },
+  lagoon: { cx: 0.5, topY: 0.28, bottomY: 0.72, topHalfW: 0.29, bottomHalfW: 0.38 },
+  snack: { cx: 0.5, topY: 0.285, bottomY: 0.725, topHalfW: 0.285, bottomHalfW: 0.375 },
+  retro: { cx: 0.5, topY: 0.28, bottomY: 0.72, topHalfW: 0.29, bottomHalfW: 0.38 },
+  hollow: { cx: 0.5, topY: 0.285, bottomY: 0.72, topHalfW: 0.285, bottomHalfW: 0.375 },
 };
 
-export function getIslandOval(island: IslandId) {
-  return ISLAND_OVALS[island] ?? OVAL_PLATEAU;
+export function getIslandTrapezoid(island: IslandId): TrapezoidBounds {
+  return ISLAND_TRAPS[island] ?? TRAPEZOID_PLATEAU;
 }
 
-export function pointInOval(
-  point: Vec2,
-  oval: { cx: number; cy: number; rx: number; ry: number }
-): boolean {
-  const nx = (point.x - oval.cx) / oval.rx;
-  const ny = (point.y - oval.cy) / oval.ry;
-  return nx * nx + ny * ny <= 1;
+/** Half-width of the trapezoid at normalized y. */
+export function halfWidthAtY(y: number, trap: TrapezoidBounds): number {
+  const t = (y - trap.topY) / Math.max(1e-6, trap.bottomY - trap.topY);
+  const u = Math.max(0, Math.min(1, t));
+  return trap.topHalfW + (trap.bottomHalfW - trap.topHalfW) * u;
 }
 
-/** Closest point on the ellipse boundary (or the point itself if inside). */
-export function closestPointOnOval(
-  point: Vec2,
-  oval: { cx: number; cy: number; rx: number; ry: number }
-): Vec2 {
-  const dx = point.x - oval.cx;
-  const dy = point.y - oval.cy;
-  if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) {
-    return { x: oval.cx + oval.rx, y: oval.cy };
-  }
-  const ux = dx / oval.rx;
-  const uy = dy / oval.ry;
-  const len = Math.hypot(ux, uy);
-  if (len <= 1) return { x: point.x, y: point.y };
-  return {
-    x: oval.cx + (ux / len) * oval.rx,
-    y: oval.cy + (uy / len) * oval.ry,
-  };
+export function pointInTrapezoid(point: Vec2, trap: TrapezoidBounds): boolean {
+  if (point.y < trap.topY || point.y > trap.bottomY) return false;
+  const hw = halfWidthAtY(point.y, trap);
+  return Math.abs(point.x - trap.cx) <= hw;
 }
 
-/** Clamp a normalized point onto the island's open oval plateau. */
+/** Closest point inside/on the trapezoid. */
+export function closestPointOnTrapezoid(point: Vec2, trap: TrapezoidBounds): Vec2 {
+  const y = Math.max(trap.topY, Math.min(trap.bottomY, point.y));
+  const hw = halfWidthAtY(y, trap);
+  const x = Math.max(trap.cx - hw, Math.min(trap.cx + hw, point.x));
+  return { x, y };
+}
+
+/** Clamp a normalized point onto the island's trapezoidal plateau. */
 export function clampToWalkBounds(
   x: number,
   y: number,
   island: IslandId = "meadow"
 ): Vec2 {
-  const oval = getIslandOval(island);
+  const trap = getIslandTrapezoid(island);
   const p = { x, y };
-  if (pointInOval(p, oval)) return p;
-  return closestPointOnOval(p, oval);
+  if (pointInTrapezoid(p, trap)) return p;
+  return closestPointOnTrapezoid(p, trap);
+}
+
+/**
+ * Depth scale for sprites on the receding ground plane.
+ * ~0.82× at the far horizon (topY) → ~1.05× at the front edge (bottomY).
+ */
+export function depthScaleAtY(y: number, island: IslandId = "meadow"): number {
+  const trap = getIslandTrapezoid(island);
+  const t = (y - trap.topY) / Math.max(1e-6, trap.bottomY - trap.topY);
+  const u = Math.max(0, Math.min(1, t));
+  return 0.82 + (1.05 - 0.82) * u;
 }

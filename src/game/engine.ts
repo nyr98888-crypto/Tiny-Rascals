@@ -9,7 +9,7 @@ import {
 import { Pose, poseFromVelocity } from "./poses";
 import { loadSave, writeSave, canAfford, spend, UPGRADE_COSTS, NEXT_ISLAND } from "./save";
 import { TextureManager } from "./textures";
-import { clampToWalkBounds } from "./walkBounds";
+import { clampToWalkBounds, depthScaleAtY } from "./walkBounds";
 import type {
   GameSave,
   IslandId,
@@ -80,12 +80,12 @@ export class GameEngine {
   /** Smoothed 0..1 night amount for sky cross-fade + lighting. */
   nightBlend = 0;
 
-  /** Land texture pixel size (pre-isometric flatten). */
+  /** Land texture pixel size. */
   landTexW = 2048;
-  landTexH = 868;
-  /** Display size: landH = texH * ISO_Y (god's-eye ~1.10× taller projection). */
+  landTexH = 1127;
+  /** Display size at native aspect (ISO_Y === 1, no vertical squash). */
   landW = 2048;
-  landH = 868 * ISO_Y;
+  landH = 1127;
   landX = 0;
   landY = 0;
 
@@ -343,20 +343,21 @@ export class GameEngine {
   }
 
   /**
-   * Island fills ~90% of viewport width (minZoom floor). Height soft-caps so the
-   * taller god's-eye projection still clears the island-switcher UI.
+   * Rectangular 16:9 terrain at ~82–85% of the viewport (both axes), leaving
+   * sky breathing room around the plateau and clear of HUD bars.
    */
   private computeFitZoom() {
     const w = Math.max(320, this.canvas.clientWidth || 1280);
     const h = Math.max(240, this.canvas.clientHeight || 720);
-    const byWidth = (w * 0.9) / Math.max(1, this.landW);
-    const byHeight = (h * 0.92) / Math.max(1, this.landH);
-    return Math.min(byWidth, byHeight);
+    const frac = 0.835;
+    return Math.min(
+      (w * frac) / Math.max(1, this.landW),
+      (h * frac) / Math.max(1, this.landH)
+    );
   }
 
   private recomputeZoomLimits() {
     const fit = this.computeFitZoom();
-    // 1.0x = ~90% width framed island (minZoom); close-ups up to 2.2x
     this.minZoom = fit;
     this.maxZoom = fit * 2.2;
     this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || fit));
@@ -369,11 +370,11 @@ export class GameEngine {
     const fit = this.computeFitZoom();
     this.targetZoom = fit;
     this.zoom = fit;
-    // Vertical anchor ≈ 0.46 — waterfalls clear bottom island-switcher UI
+    // CenterY ≈ 0.50 — full plateau over the separate sky backdrop
     this.landX = -this.landW / 2;
     this.landY = -this.landH / 2;
     this.camX = this.landX + this.landW * 0.5;
-    this.camY = this.landY + this.landH * 0.46;
+    this.camY = this.landY + this.landH * 0.5;
     this.clampCamera();
   }
 
@@ -1188,8 +1189,8 @@ export class GameEngine {
         }
       } else {
         const wander = this.clampOnIsland(
-          0.5 + (Math.random() - 0.5) * 0.72,
-          0.4 + (Math.random() - 0.5) * 0.48
+          0.5 + (Math.random() - 0.5) * 0.7,
+          0.28 + Math.random() * 0.44
         );
         r.target = wander;
         r.task = null;
@@ -1335,7 +1336,7 @@ export class GameEngine {
     ctx.scale(this.zoom, this.zoom);
     ctx.translate(-this.camX, -this.camY);
 
-    // Island at true 1:1 native aspect (no vertical squash)
+    // Rectangular terrain at native aspect over the separate full-bleed sky
     if (landImg) {
       ctx.drawImage(landImg, this.landX, this.landY, this.landW, this.landH);
     }
@@ -1443,18 +1444,18 @@ export class GameEngine {
     const hovering = this.decorateMode && this.hoverEntity === e && !dragging;
     const lift = dragging ? 6 : 0;
     const p = landToScreen(e.x, e.y, this.landX, this.landY, this.landW, this.landH);
-    const dw = spr.w * e.scale;
-    const dh = spr.h * e.scale;
-    // Anchor at bottom-center contact (~0.95) so buildings sit flat on the ground plane
+    const depth = depthScaleAtY(e.y, this.save.activeIsland);
+    const dw = spr.w * e.scale * depth;
+    const dh = spr.h * e.scale * depth;
+    // Anchor at bottom-center contact so props sit flat on the receding plane
     const imgTop = p.y - dh * SPRITE_ANCHOR_Y - lift;
 
-    // Shadow at foot contact
+    // Shadow at foot contact (scales with depth)
     this.ctx.fillStyle = `rgba(0,0,0,${0.22 + night * 0.1 + (dragging ? 0.08 : 0)})`;
     this.ctx.beginPath();
-    this.ctx.ellipse(p.x, p.y + 2, dw * 0.28 * (dragging ? 0.85 : 1), Math.max(6, dh * 0.04), 0, 0, Math.PI * 2);
+    this.ctx.ellipse(p.x, p.y + 2, dw * 0.28 * (dragging ? 0.85 : 1), Math.max(5, dh * 0.04), 0, 0, Math.PI * 2);
     this.ctx.fill();
 
-    // Golden selection ring in decorate mode
     if (dragging || hovering) {
       this.ctx.strokeStyle = dragging
         ? "rgba(224, 180, 74, 0.95)"
@@ -1481,13 +1482,13 @@ export class GameEngine {
     const bounceY = r.bounce > 0 ? Math.sin(r.bounce * Math.PI) * -18 : 0;
     const scaleY = r.squash;
     const scaleX = 2 - r.squash;
-    const size = 64;
+    const depth = depthScaleAtY(r.y, this.save.activeIsland);
+    const size = 64 * depth;
     const footOffset = size * SPRITE_ANCHOR_Y;
 
-    // Contact shadow on the top-down ground plane
     this.ctx.fillStyle = "rgba(0,0,0,0.25)";
     this.ctx.beginPath();
-    this.ctx.ellipse(p.x, p.y + 2, size * 0.28, 7, 0, 0, Math.PI * 2);
+    this.ctx.ellipse(p.x, p.y + 2, size * 0.28, Math.max(5, 7 * depth), 0, 0, Math.PI * 2);
     this.ctx.fill();
 
     this.ctx.save();
