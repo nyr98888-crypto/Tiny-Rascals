@@ -2,14 +2,14 @@
   "generatedAt": "2026-11-15T21:29:45.635Z",
   "lands": {
     "meadow": {
-      "src": "/assets-built/lands/land-meadow.png",
-      "w": 2048,
-      "h": 1143
+      "src": "/world/mado%20new.jpg",
+      "w": 2752,
+      "h": 1536
     },
     "lagoon": {
-      "src": "/assets-built/lands/land-lagoon.png",
-      "w": 2048,
-      "h": 1143
+      "src": "/world/land-lagoon.jpg",
+      "w": 5504,
+      "h": 3072
     },
     "snack": {
       "src": "/assets-built/lands/land-snack.png",

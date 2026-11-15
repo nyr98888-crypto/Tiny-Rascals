@@ -74,6 +74,8 @@ export interface Rascal {
   poseTimer: number;
   facing: 1 | -1;
   target: Vec2 | null;
+  /** Remaining road waypoints after `target` (Meadow/Lagoon path graph). */
+  pathQueue: Vec2[];
   interactWith: string | null;
   socialWith: string | null;
   task: RascalTask;

@@ -1,5 +1,6 @@
 import type { IslandId, WorldEntity } from "./types";
 import type assetManifest from "@/data/assetManifest.json";
+import { SHARED_MAP, usesSharedMapGraph } from "./mapGraph";
 
 type Manifest = typeof assetManifest;
 
@@ -122,21 +123,41 @@ function place(
 }
 
 /**
- * Active island world entities. Islands start clean (Rascals only).
- * Sprite pickers / POS / ENTITY_SCALE remain for the upcoming biome placement menu.
+ * Active island world entities.
+ * Meadow/Lagoon: five plowed plots on the shared map graph (Dig/Water Sheet 1).
+ * Buildings stay empty so decorate mode places them in open clearings.
  */
 export function buildIslandEntities(
-  _manifest: Manifest,
-  _island: IslandId,
-  _tiers: {
+  manifest: Manifest,
+  island: IslandId,
+  tiers: {
     buildingTier: 1 | 2 | 3;
     propTier: 1 | 2 | 3;
     cropTier: 1 | 2 | 3;
     clutterTier: 1 | 2 | 3;
   },
-  _layoutOverrides: Record<string, { x: number; y: number }> = {}
+  layoutOverrides: Record<string, { x: number; y: number }> = {}
 ): WorldEntity[] {
-  return [];
+  if (!usesSharedMapGraph(island)) return [];
+
+  const entities: WorldEntity[] = [];
+  SHARED_MAP.plots.forEach((plot, i) => {
+    const id = `${island}-soil-${plot.id}`;
+    const pos = layoutOverrides[id] ?? { x: plot.x, y: plot.y };
+    entities.push({
+      id,
+      kind: "crop",
+      spriteId: pickCrop(manifest, tiers.cropTier, i),
+      x: pos.x,
+      y: pos.y,
+      scale: 0.42 * ENTITY_SCALE,
+      footY: pos.y,
+      movable: true,
+      interact: "soil",
+      cropStage: 1,
+    });
+  });
+  return entities;
 }
 
 /**

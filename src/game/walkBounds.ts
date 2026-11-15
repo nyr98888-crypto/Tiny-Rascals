@@ -1,13 +1,12 @@
 import type { IslandId, Vec2 } from "./types";
+import {
+  clampToRoadNetwork,
+  randomRoadTarget,
+  usesSharedMapGraph,
+} from "./mapGraph";
 
 /**
- * Meadow grass-only clearing — keeps Rascals/buildings off cliffs, trees,
- * waterfalls, and the bottom-right creek.
- *
- *   top:    y >= 0.35 (below rocky cliff wall)
- *   left:   x >= 0.21 (inside left trees / fallen log)
- *   right:  x <= 0.72, curving to x <= 0.68 for y > 0.65 (river bend)
- *   bottom: y <= 0.85 (above bottom UI bar)
+ * Meadow grass-only clearing — legacy fallback for non-shared islands.
  */
 const MEADOW_GRASS: Vec2[] = [
   { x: 0.21, y: 0.35 },
@@ -18,7 +17,6 @@ const MEADOW_GRASS: Vec2[] = [
   { x: 0.21, y: 0.85 },
 ];
 
-/** Sibling biomes — same family of inset grass clearings until per-art tuned. */
 function grassClearing(
   left: number,
   rightTop: number,
@@ -95,20 +93,26 @@ export function closestPointOnPolygon(point: Vec2, polygon: Vec2[]): Vec2 {
   return { x: best.x, y: best.y };
 }
 
-/** Clamp a normalized point onto the grass-only clearing. */
+/** Clamp feet onto the road network (Meadow/Lagoon) or legacy grass poly. */
 export function clampToWalkBounds(
   x: number,
   y: number,
   island: IslandId = "meadow"
 ): Vec2 {
+  if (usesSharedMapGraph(island)) {
+    return clampToRoadNetwork(x, y);
+  }
   const poly = getIslandClearing(island);
   const p = { x, y };
   if (pointInPolygon(p, poly)) return p;
   return closestPointOnPolygon(p, poly);
 }
 
-/** Pick a random wander target strictly inside the grass clearing. */
+/** Pick a wander target on the road graph or inside the grass clearing. */
 export function randomPointInClearing(island: IslandId): Vec2 {
+  if (usesSharedMapGraph(island)) {
+    return randomRoadTarget();
+  }
   const poly = getIslandClearing(island);
   let minX = Infinity;
   let maxX = -Infinity;
@@ -132,12 +136,11 @@ export function randomPointInClearing(island: IslandId): Vec2 {
 
 /**
  * Subtle depth scale for isometric village maps (back → front).
- * Tuned to the grass clearing band (~0.35–0.85).
  */
 export function depthScaleAtY(y: number, _island: IslandId = "meadow"): number {
-  const top = 0.35;
-  const bottom = 0.85;
+  const top = 0.2;
+  const bottom = 0.9;
   const t = (y - top) / Math.max(1e-6, bottom - top);
   const u = Math.max(0, Math.min(1, t));
-  return 0.9 + (1.06 - 0.9) * u;
+  return 0.88 + (1.08 - 0.88) * u;
 }

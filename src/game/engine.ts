@@ -10,6 +10,13 @@ import { Pose, poseFromVelocity } from "./poses";
 import { resolvePoseCell } from "./spriteMap";
 import { loadSave, writeSave, canAfford, spend, UPGRADE_COSTS, NEXT_ISLAND } from "./save";
 import { TextureManager } from "./textures";
+import {
+  BIOME_PORTALS,
+  nearPortal,
+  roadPath,
+  SHARED_MAP,
+  usesSharedMapGraph,
+} from "./mapGraph";
 import { clampToWalkBounds, depthScaleAtY, randomPointInClearing } from "./walkBounds";
 import type {
   GameSave,
@@ -43,6 +50,7 @@ function freshRascal(
     poseTimer: 0,
     facing: 1,
     target: null,
+    pathQueue: [],
     interactWith: null,
     socialWith: null,
     task: null,
@@ -299,7 +307,15 @@ export class GameEngine {
 
   spawnPet(petId: string, x = 0.5, y = 0.4) {
     const island = this.save.activeIsland;
-    const r = freshRascal(`${island}-rascal-${Date.now()}`, petId, x, y);
+    const spawn =
+      usesSharedMapGraph(island)
+        ? clampToWalkBounds(
+            SHARED_MAP.nodes.crossroads.x,
+            SHARED_MAP.nodes.crossroads.y,
+            island
+          )
+        : clampToWalkBounds(x, y, island);
+    const r = freshRascal(`${island}-rascal-${Date.now()}`, petId, spawn.x, spawn.y);
     r.pose = Pose.WAVE_HELLO;
     r.poseTimer = 1.2;
     r.bounce = 0.4;
@@ -699,6 +715,7 @@ export class GameEngine {
         } else {
           r.state = "WANDER_PATH";
           r.target = null;
+          r.pathQueue = [];
           r.task = null;
           r.sprint = true; // rush after being dropped
         }
@@ -754,13 +771,15 @@ export class GameEngine {
     b.poseTimer = 1.8;
     a.target = null;
     b.target = null;
+    a.pathQueue = [];
+    b.pathQueue = [];
     this.audio.chirp();
   }
 
   private beginStationVisit(r: Rascal, prop: WorldEntity, fromDrop: boolean) {
     r.interactWith = prop.id;
     r.sprint = fromDrop;
-    r.target = { x: prop.x, y: prop.y };
+    this.setRoadTarget(r, prop.x, prop.y);
     r.state = "WANDER_PATH";
     const kind = prop.interact;
     if (kind === "soil") r.task = "farm";
@@ -775,6 +794,63 @@ export class GameEngine {
     if (kind === "tub") this.audio.splash();
     else if (kind === "tree") this.audio.chop();
     else this.audio.chirp();
+  }
+
+  /** Route along the shared dirt/bridge graph when on Meadow/Lagoon. */
+  private setRoadTarget(r: Rascal, tx: number, ty: number) {
+    const island = this.save.activeIsland;
+    if (!usesSharedMapGraph(island)) {
+      r.pathQueue = [];
+      r.target = { x: tx, y: ty };
+      return;
+    }
+    const pts = roadPath(r.x, r.y, tx, ty);
+    if (pts.length === 0) {
+      r.pathQueue = [];
+      r.target = { x: tx, y: ty };
+      return;
+    }
+    r.target = pts[0];
+    r.pathQueue = pts.slice(1);
+  }
+
+  private advancePathOrArrive(r: Rascal): boolean {
+    if (r.pathQueue.length > 0) {
+      r.target = r.pathQueue.shift()!;
+      return false;
+    }
+    r.target = null;
+    return true;
+  }
+
+  /** Walk off left/right portal → hop Meadow ↔ Lagoon along the road. */
+  private tryBiomePortal(r: Rascal) {
+    const island = this.save.activeIsland;
+    if (island !== "meadow" && island !== "lagoon") return;
+    if (!nearPortal(island, r.x, r.y)) return;
+    const portal = BIOME_PORTALS[island];
+    const dest = this.save.islands[portal.to];
+    if (!dest.unlocked && !this.save.sandboxPreviewAll) return;
+
+    const enter = SHARED_MAP.nodes[portal.enterNode];
+    this.persistRascals();
+    // Remove from current island spawn list
+    this.save.spawned[island] = (this.save.spawned[island] || []).filter(
+      (s) => !(s.petId === r.petId && Math.hypot(s.x - r.x, s.y - r.y) < 0.08)
+    );
+    const feet = clampToWalkBounds(enter.x, enter.y, portal.to);
+    if (!this.save.spawned[portal.to]) this.save.spawned[portal.to] = [];
+    this.save.spawned[portal.to].push({
+      petId: r.petId,
+      x: feet.x,
+      y: feet.y,
+      xp: r.xp,
+      level: r.level,
+    });
+    this.save.activeIsland = portal.to;
+    writeSave(this.save);
+    this.reloadIsland();
+    this.audio.chirp();
   }
 
   private clearHideProp(r: Rascal) {
@@ -939,10 +1015,9 @@ export class GameEngine {
     if (!r.interactWith) return;
     const ent = this.entities.find((e) => e.id === r.interactWith);
     if (!ent || ent.hidden) return;
-    if (!r.target) r.target = { x: ent.x, y: ent.y };
-    else {
-      r.target.x = ent.x;
-      r.target.y = ent.y;
+    // Only repath when idle of waypoints (avoid fighting the road queue)
+    if (!r.target && r.pathQueue.length === 0) {
+      this.setRoadTarget(r, ent.x, ent.y);
     }
   }
 
@@ -971,6 +1046,7 @@ export class GameEngine {
     r.task = null;
     r.taskStep = 0;
     r.target = null;
+    r.pathQueue = [];
     r.sprint = false;
     r.poseChain = [];
     r.pose = Pose.IDLE;
@@ -1088,9 +1164,9 @@ export class GameEngine {
         r.state = "HAUL";
         r.pose = Pose.CARRY_BERRIES;
         r.interactWith = barn?.id ?? null;
-        r.target = barn ? { x: barn.x, y: barn.y } : null;
         r.sprint = false;
-        if (!barn) {
+        if (barn) this.setRoadTarget(r, barn.x, barn.y);
+        else {
           this.award("crops", r.x, r.y);
           this.gainXp(r, 3);
           this.finishIdle(r);
@@ -1104,7 +1180,8 @@ export class GameEngine {
       r.state = "HAUL";
       r.pose = r.task === "bush" ? Pose.CARRY_BERRIES : Pose.CARRY_LOGS;
       r.interactWith = barn?.id ?? null;
-      r.target = barn ? { x: barn.x, y: barn.y } : null;
+      if (barn) this.setRoadTarget(r, barn.x, barn.y);
+      else r.target = null;
       if (!barn) {
         this.award(r.task === "bush" ? "berries" : "wood", r.x, r.y);
         r.pose = Pose.WIPE_SWEAT;
@@ -1218,15 +1295,30 @@ export class GameEngine {
       } else if (roll < 0.88) {
         const friend = this.nearestRascal(r, 0.28);
         if (friend) {
-          r.target = { x: friend.x, y: friend.y };
+          this.setRoadTarget(r, friend.x, friend.y);
           r.interactWith = null;
           r.task = "social";
         }
       } else {
-        r.target = randomPointInClearing(this.save.activeIsland);
+        const p = randomPointInClearing(this.save.activeIsland);
+        this.setRoadTarget(r, p.x, p.y);
         r.task = null;
         r.interactWith = null;
       }
+    }
+
+    // Edge portal: commute Meadow ↔ Lagoon
+    if (
+      r.state === "WANDER_PATH" &&
+      !r.interactWith &&
+      usesSharedMapGraph(this.save.activeIsland) &&
+      Math.random() < dt * 0.04
+    ) {
+      const island = this.save.activeIsland as "meadow" | "lagoon";
+      const exit = SHARED_MAP.nodes[BIOME_PORTALS[island].exitNode];
+      this.setRoadTarget(r, exit.x, exit.y);
+      r.task = null;
+      r.sprint = true;
     }
 
     // Passing social wave
@@ -1268,7 +1360,9 @@ export class GameEngine {
     if (dist < 0.022) {
       r.vx = 0;
       r.vy = 0;
-      r.target = null;
+      const arrived = this.advancePathOrArrive(r);
+      if (!arrived) return;
+
       if (r.state === "HAUL") {
         this.onArriveHaul(r);
       } else if (r.task === "social") {
@@ -1278,6 +1372,11 @@ export class GameEngine {
       } else if (r.interactWith) {
         this.onArriveAtStation(r);
       } else {
+        // Portal hop when finishing a road walk at the edge
+        if (nearPortal(this.save.activeIsland, r.x, r.y)) {
+          this.tryBiomePortal(r);
+          return;
+        }
         r.sprint = false;
         r.pose = Pose.IDLE;
       }
