@@ -1,42 +1,52 @@
 import type { IslandId, Vec2 } from "./types";
 
 /**
- * Spacious rounded-rectangle clearing on full-bleed Farland-style maps.
- * Covers central + lower-foreground ground; clear of upper cliffs/trees and
- * bottom-corner creek. Approx x: 0.12–0.88, y: 0.28–0.84 with rounded corners.
+ * Meadow grass-only clearing — keeps Rascals/buildings off cliffs, trees,
+ * waterfalls, and the bottom-right creek.
+ *
+ *   top:    y >= 0.35 (below rocky cliff wall)
+ *   left:   x >= 0.21 (inside left trees / fallen log)
+ *   right:  x <= 0.72, curving to x <= 0.68 for y > 0.65 (river bend)
+ *   bottom: y <= 0.85 (above bottom UI bar)
  */
-function roundedClearing(
+const MEADOW_GRASS: Vec2[] = [
+  { x: 0.21, y: 0.35 },
+  { x: 0.72, y: 0.35 },
+  { x: 0.72, y: 0.65 },
+  { x: 0.68, y: 0.72 },
+  { x: 0.68, y: 0.85 },
+  { x: 0.21, y: 0.85 },
+];
+
+/** Sibling biomes — same family of inset grass clearings until per-art tuned. */
+function grassClearing(
   left: number,
-  right: number,
+  rightTop: number,
+  rightBot: number,
   top: number,
-  bottom: number,
-  corner = 0.06
+  midY: number,
+  bottom: number
 ): Vec2[] {
-  const c = corner;
   return [
-    { x: left + c, y: top },
-    { x: right - c, y: top },
-    { x: right, y: top + c },
-    { x: right, y: bottom - c },
-    { x: right - c, y: bottom },
-    { x: left + c, y: bottom },
-    { x: left, y: bottom - c },
-    { x: left, y: top + c },
+    { x: left, y: top },
+    { x: rightTop, y: top },
+    { x: rightTop, y: midY },
+    { x: rightBot, y: midY + 0.07 },
+    { x: rightBot, y: bottom },
+    { x: left, y: bottom },
   ];
 }
 
-const DEFAULT_CLEARING = roundedClearing(0.12, 0.88, 0.28, 0.84, 0.06);
-
 const ISLAND_CLEARINGS: Record<IslandId, Vec2[]> = {
-  meadow: roundedClearing(0.12, 0.88, 0.28, 0.84, 0.06),
-  lagoon: roundedClearing(0.12, 0.88, 0.28, 0.84, 0.055),
-  snack: roundedClearing(0.125, 0.875, 0.285, 0.835, 0.06),
-  retro: roundedClearing(0.12, 0.88, 0.28, 0.84, 0.055),
-  hollow: roundedClearing(0.125, 0.875, 0.28, 0.84, 0.06),
+  meadow: MEADOW_GRASS,
+  lagoon: grassClearing(0.21, 0.72, 0.68, 0.35, 0.65, 0.85),
+  snack: grassClearing(0.21, 0.72, 0.68, 0.35, 0.65, 0.85),
+  retro: grassClearing(0.21, 0.72, 0.68, 0.35, 0.65, 0.85),
+  hollow: grassClearing(0.21, 0.72, 0.68, 0.35, 0.65, 0.85),
 };
 
 export function getIslandClearing(island: IslandId): Vec2[] {
-  return ISLAND_CLEARINGS[island] ?? DEFAULT_CLEARING;
+  return ISLAND_CLEARINGS[island] ?? MEADOW_GRASS;
 }
 
 export function pointInPolygon(point: Vec2, polygon: Vec2[]): boolean {
@@ -85,7 +95,7 @@ export function closestPointOnPolygon(point: Vec2, polygon: Vec2[]): Vec2 {
   return { x: best.x, y: best.y };
 }
 
-/** Clamp a normalized point onto the island's open clearing. */
+/** Clamp a normalized point onto the grass-only clearing. */
 export function clampToWalkBounds(
   x: number,
   y: number,
@@ -97,14 +107,37 @@ export function clampToWalkBounds(
   return closestPointOnPolygon(p, poly);
 }
 
+/** Pick a random wander target strictly inside the grass clearing. */
+export function randomPointInClearing(island: IslandId): Vec2 {
+  const poly = getIslandClearing(island);
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  for (const v of poly) {
+    if (v.x < minX) minX = v.x;
+    if (v.x > maxX) maxX = v.x;
+    if (v.y < minY) minY = v.y;
+    if (v.y > maxY) maxY = v.y;
+  }
+  for (let i = 0; i < 48; i++) {
+    const p = {
+      x: minX + Math.random() * (maxX - minX),
+      y: minY + Math.random() * (maxY - minY),
+    };
+    if (pointInPolygon(p, poly)) return p;
+  }
+  return clampToWalkBounds((minX + maxX) / 2, (minY + maxY) / 2, island);
+}
+
 /**
  * Subtle depth scale for isometric village maps (back → front).
- * ~0.88× at clearing top → ~1.06× at clearing bottom.
+ * Tuned to the grass clearing band (~0.35–0.85).
  */
 export function depthScaleAtY(y: number, _island: IslandId = "meadow"): number {
-  const top = 0.28;
-  const bottom = 0.84;
+  const top = 0.35;
+  const bottom = 0.85;
   const t = (y - top) / Math.max(1e-6, bottom - top);
   const u = Math.max(0, Math.min(1, t));
-  return 0.88 + (1.06 - 0.88) * u;
+  return 0.9 + (1.06 - 0.9) * u;
 }

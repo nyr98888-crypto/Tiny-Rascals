@@ -9,7 +9,7 @@ import {
 import { Pose, poseFromVelocity } from "./poses";
 import { loadSave, writeSave, canAfford, spend, UPGRADE_COSTS, NEXT_ISLAND } from "./save";
 import { TextureManager } from "./textures";
-import { clampToWalkBounds, depthScaleAtY } from "./walkBounds";
+import { clampToWalkBounds, depthScaleAtY, randomPointInClearing } from "./walkBounds";
 import type {
   GameSave,
   IslandId,
@@ -243,9 +243,17 @@ export class GameEngine {
     const prog = this.save.islands[island];
     const overrides = this.save.layoutOverrides?.[island] ?? {};
     this.entities = buildIslandEntities(manifest, island, prog, overrides);
-    this.rascals = (this.save.spawned[island] || []).map((s, i) =>
-      freshRascal(`${island}-rascal-${i}-${s.petId}`, s.petId, s.x, s.y, s.xp, s.level)
-    );
+    this.rascals = (this.save.spawned[island] || []).map((s, i) => {
+      const feet = clampToWalkBounds(s.x, s.y, island);
+      return freshRascal(
+        `${island}-rascal-${i}-${s.petId}`,
+        s.petId,
+        feet.x,
+        feet.y,
+        s.xp,
+        s.level
+      );
+    });
     void this.loadActiveTextures().then(() => {
       this.frameIsland();
       this.emit();
@@ -1186,11 +1194,7 @@ export class GameEngine {
           r.task = "social";
         }
       } else {
-        const wander = this.clampOnIsland(
-          0.12 + Math.random() * 0.76,
-          0.28 + Math.random() * 0.56
-        );
-        r.target = wander;
+        r.target = randomPointInClearing(this.save.activeIsland);
         r.task = null;
         r.interactWith = null;
       }
@@ -1399,9 +1403,10 @@ export class GameEngine {
 
     ctx.restore();
 
-    // Soft night wash over the full-bleed map (no separate sky cross-fade)
+    // Soft night wash — keep daytime vibrant (min brightness ≥ 0.88)
     if (night > 0.02) {
-      ctx.fillStyle = `rgba(12, 18, 48, ${0.42 * night})`;
+      const maxDim = 0.12; // 1 - 0.88
+      ctx.fillStyle = `rgba(12, 18, 48, ${maxDim * night})`;
       ctx.fillRect(0, 0, w, h);
     }
   }
