@@ -1,80 +1,110 @@
 import type { IslandId, Vec2 } from "./types";
 
 /**
- * One-point perspective trapezoid on the foreshortened tabletop (ISO_Y = 0.56).
- * UVs map through landH = texH * ISO_Y so Rascals stay on the inner floor.
- * Top (far) narrower; bottom (front) wider, inset from rim/waterfalls.
- *
- * Default: top y≈0.30 width≈0.56; bottom y≈0.70 width≈0.74 (centered on x=0.5).
+ * Spacious rounded-rectangle clearing on full-bleed Farland-style maps.
+ * Covers central + lower-foreground ground; clear of upper cliffs/trees and
+ * bottom-corner creek. Approx x: 0.12–0.88, y: 0.28–0.84 with rounded corners.
  */
-export type TrapezoidBounds = {
-  topY: number;
-  bottomY: number;
-  topHalfW: number;
-  bottomHalfW: number;
-  cx: number;
+function roundedClearing(
+  left: number,
+  right: number,
+  top: number,
+  bottom: number,
+  corner = 0.06
+): Vec2[] {
+  const c = corner;
+  return [
+    { x: left + c, y: top },
+    { x: right - c, y: top },
+    { x: right, y: top + c },
+    { x: right, y: bottom - c },
+    { x: right - c, y: bottom },
+    { x: left + c, y: bottom },
+    { x: left, y: bottom - c },
+    { x: left, y: top + c },
+  ];
+}
+
+const DEFAULT_CLEARING = roundedClearing(0.12, 0.88, 0.28, 0.84, 0.06);
+
+const ISLAND_CLEARINGS: Record<IslandId, Vec2[]> = {
+  meadow: roundedClearing(0.12, 0.88, 0.28, 0.84, 0.06),
+  lagoon: roundedClearing(0.12, 0.88, 0.28, 0.84, 0.055),
+  snack: roundedClearing(0.125, 0.875, 0.285, 0.835, 0.06),
+  retro: roundedClearing(0.12, 0.88, 0.28, 0.84, 0.055),
+  hollow: roundedClearing(0.125, 0.875, 0.28, 0.84, 0.06),
 };
 
-export const TRAPEZOID_PLATEAU: TrapezoidBounds = {
-  cx: 0.5,
-  topY: 0.3,
-  bottomY: 0.7,
-  topHalfW: 0.56 / 2,
-  bottomHalfW: 0.74 / 2,
-};
-
-const ISLAND_TRAPS: Record<IslandId, TrapezoidBounds> = {
-  meadow: { ...TRAPEZOID_PLATEAU },
-  lagoon: { cx: 0.5, topY: 0.3, bottomY: 0.7, topHalfW: 0.28, bottomHalfW: 0.37 },
-  snack: { cx: 0.5, topY: 0.305, bottomY: 0.705, topHalfW: 0.275, bottomHalfW: 0.365 },
-  retro: { cx: 0.5, topY: 0.3, bottomY: 0.7, topHalfW: 0.28, bottomHalfW: 0.37 },
-  hollow: { cx: 0.5, topY: 0.305, bottomY: 0.7, topHalfW: 0.275, bottomHalfW: 0.365 },
-};
-
-export function getIslandTrapezoid(island: IslandId): TrapezoidBounds {
-  return ISLAND_TRAPS[island] ?? TRAPEZOID_PLATEAU;
+export function getIslandClearing(island: IslandId): Vec2[] {
+  return ISLAND_CLEARINGS[island] ?? DEFAULT_CLEARING;
 }
 
-/** Half-width of the trapezoid at normalized y. */
-export function halfWidthAtY(y: number, trap: TrapezoidBounds): number {
-  const t = (y - trap.topY) / Math.max(1e-6, trap.bottomY - trap.topY);
-  const u = Math.max(0, Math.min(1, t));
-  return trap.topHalfW + (trap.bottomHalfW - trap.topHalfW) * u;
+export function pointInPolygon(point: Vec2, polygon: Vec2[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const pi = polygon[i];
+    const pj = polygon[j];
+    const intersect =
+      pi.y > point.y !== pj.y > point.y &&
+      point.x <
+        ((pj.x - pi.x) * (point.y - pi.y)) / (pj.y - pi.y + Number.EPSILON) + pi.x;
+    if (intersect) inside = !inside;
+  }
+  return inside;
 }
 
-export function pointInTrapezoid(point: Vec2, trap: TrapezoidBounds): boolean {
-  if (point.y < trap.topY || point.y > trap.bottomY) return false;
-  const hw = halfWidthAtY(point.y, trap);
-  return Math.abs(point.x - trap.cx) <= hw;
+function dist2(a: Vec2, b: Vec2) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
 }
 
-/** Closest point inside/on the trapezoid. */
-export function closestPointOnTrapezoid(point: Vec2, trap: TrapezoidBounds): Vec2 {
-  const y = Math.max(trap.topY, Math.min(trap.bottomY, point.y));
-  const hw = halfWidthAtY(y, trap);
-  const x = Math.max(trap.cx - hw, Math.min(trap.cx + hw, point.x));
-  return { x, y };
+function closestPointOnSegment(p: Vec2, a: Vec2, b: Vec2): Vec2 {
+  const abx = b.x - a.x;
+  const aby = b.y - a.y;
+  const len2 = abx * abx + aby * aby;
+  if (len2 < 1e-12) return { x: a.x, y: a.y };
+  let t = ((p.x - a.x) * abx + (p.y - a.y) * aby) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return { x: a.x + abx * t, y: a.y + aby * t };
 }
 
-/** Clamp a normalized point onto the island's trapezoidal plateau. */
+export function closestPointOnPolygon(point: Vec2, polygon: Vec2[]): Vec2 {
+  let best = polygon[0];
+  let bestD = Infinity;
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i];
+    const b = polygon[(i + 1) % polygon.length];
+    const c = closestPointOnSegment(point, a, b);
+    const d = dist2(point, c);
+    if (d < bestD) {
+      bestD = d;
+      best = c;
+    }
+  }
+  return { x: best.x, y: best.y };
+}
+
+/** Clamp a normalized point onto the island's open clearing. */
 export function clampToWalkBounds(
   x: number,
   y: number,
   island: IslandId = "meadow"
 ): Vec2 {
-  const trap = getIslandTrapezoid(island);
+  const poly = getIslandClearing(island);
   const p = { x, y };
-  if (pointInTrapezoid(p, trap)) return p;
-  return closestPointOnTrapezoid(p, trap);
+  if (pointInPolygon(p, poly)) return p;
+  return closestPointOnPolygon(p, poly);
 }
 
 /**
- * Depth scale for sprites on the receding ground plane.
- * ~0.82× at the far horizon (topY) → ~1.05× at the front edge (bottomY).
+ * Subtle depth scale for isometric village maps (back → front).
+ * ~0.88× at clearing top → ~1.06× at clearing bottom.
  */
-export function depthScaleAtY(y: number, island: IslandId = "meadow"): number {
-  const trap = getIslandTrapezoid(island);
-  const t = (y - trap.topY) / Math.max(1e-6, trap.bottomY - trap.topY);
+export function depthScaleAtY(y: number, _island: IslandId = "meadow"): number {
+  const top = 0.28;
+  const bottom = 0.84;
+  const t = (y - top) / Math.max(1e-6, bottom - top);
   const u = Math.max(0, Math.min(1, t));
-  return 0.82 + (1.05 - 0.82) * u;
+  return 0.88 + (1.06 - 0.88) * u;
 }

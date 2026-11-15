@@ -82,10 +82,10 @@ export class GameEngine {
 
   /** Land texture pixel size. */
   landTexW = 2048;
-  landTexH = 1127;
-  /** Display size: landH = texH * ISO_Y (0.56 foreshortened tabletop). */
+  landTexH = 1143;
+  /** Full-bleed map display size (native aspect, ISO_Y === 1). */
   landW = 2048;
-  landH = 1127 * ISO_Y;
+  landH = 1143;
   landX = 0;
   landY = 0;
 
@@ -210,9 +210,9 @@ export class GameEngine {
   private async loadActiveTextures() {
     const island = this.save.activeIsland;
     const land = manifest.lands[island];
-    const sky = manifest.backdrops[island];
-    const keep = new Set<string>([land.src, sky.day, sky.night]);
-    const srcs = [land.src, sky.day, sky.night];
+    // Full-bleed world maps include their own sky — no separate backdrop layer
+    const keep = new Set<string>([land.src]);
+    const srcs = [land.src];
 
     for (const e of this.entities) {
       const spr = manifest.worldSprites[e.spriteId as keyof typeof manifest.worldSprites];
@@ -343,15 +343,16 @@ export class GameEngine {
   }
 
   /**
-   * Flattened tabletop: islandScaleX spans ~88% of viewport width.
-   * Height soft-caps so foreshortened land + waterfalls clear the switcher bar.
+   * Cover zoom: map fills 100% of the viewport (zero letterboxing / black bars).
+   * Zooming in still works; zoom-out floor is this cover scale.
    */
   private computeFitZoom() {
     const w = Math.max(320, this.canvas.clientWidth || 1280);
     const h = Math.max(240, this.canvas.clientHeight || 720);
-    const byWidth = (w * 0.88) / Math.max(1, this.landW);
-    const byHeight = (h * 0.9) / Math.max(1, this.landH);
-    return Math.min(byWidth, byHeight);
+    return Math.max(
+      w / Math.max(1, this.landW),
+      h / Math.max(1, this.landH)
+    );
   }
 
   private recomputeZoomLimits() {
@@ -368,11 +369,10 @@ export class GameEngine {
     const fit = this.computeFitZoom();
     this.targetZoom = fit;
     this.zoom = fit;
-    // CenterY ≈ 0.52 — plateau + waterfalls above the island-switcher bar
     this.landX = -this.landW / 2;
     this.landY = -this.landH / 2;
     this.camX = this.landX + this.landW * 0.5;
-    this.camY = this.landY + this.landH * 0.52;
+    this.camY = this.landY + this.landH * 0.5;
     this.clampCamera();
   }
 
@@ -1187,8 +1187,8 @@ export class GameEngine {
         }
       } else {
         const wander = this.clampOnIsland(
-          0.5 + (Math.random() - 0.5) * 0.68,
-          0.3 + Math.random() * 0.4
+          0.12 + Math.random() * 0.76,
+          0.28 + Math.random() * 0.56
         );
         r.target = wander;
         r.task = null;
@@ -1287,43 +1287,6 @@ export class GameEngine {
     return this.nightBlend;
   }
 
-  /**
-   * Screen-space sky cover. Overscans and shifts upward (~center 20%) so the
-   * ocean horizon sinks to the bottom edge / off-screen — only open sky/clouds
-   * sit behind the floating plateau.
-   */
-  private drawSkyCover(
-    dayImg: HTMLImageElement | null,
-    nightImg: HTMLImageElement | null,
-    night: number,
-    w: number,
-    h: number
-  ) {
-    const ctx = this.ctx;
-    const cover = (img: HTMLImageElement) => {
-      // Cover + vertical overscan so we can pan the horizon off the bottom
-      const scale = Math.max(w / img.width, h / img.height) * 1.28;
-      const dw = img.width * scale;
-      const dh = img.height * scale;
-      const dx = (w - dw) / 2;
-      // Place image focalY≈20% near viewport ~12% — ocean water exits below
-      const focalY = 0.2;
-      const destFocalY = 0.12;
-      const dy = destFocalY * h - focalY * dh;
-      ctx.drawImage(img, dx, dy, dw, dh);
-    };
-    if (dayImg) cover(dayImg);
-    if (nightImg && night > 0) {
-      ctx.globalAlpha = night;
-      cover(nightImg);
-      ctx.globalAlpha = 1;
-    }
-    if (night > 0.05 && night < 0.95) {
-      ctx.fillStyle = `rgba(255, 170, 90, ${0.08 * Math.sin(night * Math.PI)})`;
-      ctx.fillRect(0, 0, w, h);
-    }
-  }
-
   private draw() {
     const ctx = this.ctx;
     const w = this.canvas.clientWidth;
@@ -1331,20 +1294,15 @@ export class GameEngine {
     ctx.clearRect(0, 0, w, h);
 
     const island = this.save.activeIsland;
-    const dayImg = this.textures.get(manifest.backdrops[island].day);
-    const nightImg = this.textures.get(manifest.backdrops[island].night);
     const landImg = this.textures.get(manifest.lands[island].src);
     const night = this.nightFactor();
-
-    // Sky locked to viewport (screen space) — 100% cover, zero black edges
-    this.drawSkyCover(dayImg, nightImg, night, w, h);
 
     ctx.save();
     ctx.translate(w / 2, h / 2);
     ctx.scale(this.zoom, this.zoom);
     ctx.translate(-this.camX, -this.camY);
 
-    // Flattened horizontal tabletop (scaleY = scaleX * 0.56) over open sky
+    // Full-bleed 16:9 isometric village map (includes baked-in sky)
     if (landImg) {
       ctx.drawImage(landImg, this.landX, this.landY, this.landW, this.landH);
     }
@@ -1440,6 +1398,12 @@ export class GameEngine {
     }
 
     ctx.restore();
+
+    // Soft night wash over the full-bleed map (no separate sky cross-fade)
+    if (night > 0.02) {
+      ctx.fillStyle = `rgba(12, 18, 48, ${0.42 * night})`;
+      ctx.fillRect(0, 0, w, h);
+    }
   }
 
   private drawEntity(e: WorldEntity, night: number) {

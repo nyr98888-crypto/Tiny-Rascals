@@ -392,59 +392,30 @@ async function saveRgbaPng(data, width, height, outPath) {
 
 async function processIsland(id) {
   const files = listWorldFiles();
-  // Prefer new land-<id>.* oval sprites over legacy Meadow.png / Lagoon.jpg etc.
+  // Prefer exact land-<id>.(jpg|png|…) — never flood-fill or crop full-bleed maps
+  const exact = files.find((f) =>
+    new RegExp(`^land-${id}\\.(png|jpe?g|webp)$`, "i").test(f)
+  );
   const match =
+    exact ||
     files.find((f) => f.toLowerCase().startsWith(`land-${id}.`)) ||
     files.find((f) => f.toLowerCase().startsWith(id.toLowerCase() + "."));
   if (!match) throw new Error(`Island not found: ${id}`);
   const file = path.join(worldDir, match);
 
-  const { data, width, height } = await loadRgba(file);
-
-  // Only flood opaque backgrounds; already-transparent oval lands keep orbiting islets
-  const corners = [
-    0,
-    (width - 1) * 4,
-    (height - 1) * width * 4,
-    ((height - 1) * width + (width - 1)) * 4,
-  ];
-  let avgA = 0;
-  for (const i of corners) avgA += data[i + 3];
-  avgA /= 4;
-  if (avgA > 200) {
-    const { mask, blackSeed } = floodFillOuterBg(data, width, height);
-    featherBoundary(data, width, height, mask, blackSeed ? 1 : 1.5);
-  }
-
-  const bbox = contentBBox(data, width, height);
-  if (!bbox) throw new Error(`Island empty after fill: ${id}`);
-
-  // Generous pad so rim islets / waterfall sprays aren't over-cropped
-  const pad = Math.max(TRIM_MARGIN, 48);
-  const left = Math.max(0, bbox.left - pad);
-  const top = Math.max(0, bbox.top - pad);
-  const right = Math.min(width, bbox.left + bbox.width + pad);
-  const bottom = Math.min(height, bbox.top + bbox.height + pad);
-  const tw = right - left;
-  const th = bottom - top;
-
-  const cropped = Buffer.alloc(tw * th * 4);
-  for (let y = 0; y < th; y++) {
-    const srcStart = ((top + y) * width + left) * 4;
-    data.copy(cropped, y * tw * 4, srcStart, srcStart + tw * 4);
-  }
-
-  const tmp = path.join(outLands, `.tmp-${id}.png`);
-  await saveRgbaPng(cropped, tw, th, tmp);
-  const meta = await sharp(tmp).metadata();
-  // Cap longest edge at LAND_MAX_W while preserving true 1:1 aspect
+  const meta = await sharp(file).metadata();
   const scale = Math.min(1, LAND_MAX_W / Math.max(meta.width, meta.height));
   const outW = Math.round(meta.width * scale);
   const outH = Math.round(meta.height * scale);
   const outName = `land-${id}.png`;
   const outPath = path.join(outLands, outName);
-  await sharp(tmp).resize(outW, outH, { kernel: sharp.kernel.lanczos3 }).png().toFile(outPath);
-  fs.unlinkSync(tmp);
+
+  // Full-bleed isometric village maps: keep every pixel, no BG removal / trim
+  await sharp(file)
+    .ensureAlpha()
+    .resize(outW, outH, { kernel: sharp.kernel.lanczos3, fit: "fill" })
+    .png()
+    .toFile(outPath);
 
   const finalMeta = await sharp(outPath).metadata();
   return {

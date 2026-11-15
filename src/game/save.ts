@@ -51,8 +51,8 @@ export function defaultSave(starterPets: string[]): GameSave {
       const row = Math.floor(k / 3);
       spawned[island].push({
         petId,
-        x: 0.42 + col * 0.08,
-        y: 0.4 + row * 0.1,
+        x: 0.35 + col * 0.15,
+        y: 0.45 + row * 0.12,
         xp: 0,
         level: 1,
       });

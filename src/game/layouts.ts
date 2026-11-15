@@ -292,11 +292,8 @@ export function buildCatalogIslandEntities(
   return entities;
 }
 
-/**
- * Horizontal tabletop foreshortening: islandScaleY = islandScaleX * 0.56
- * so the trapezoid reads as a wide flat floor, not an upright wall.
- */
-export const ISO_Y = 0.56;
+/** Full-bleed world maps: native aspect (no vertical foreshortening). */
+export const ISO_Y = 1;
 
 /** Bottom-center contact shadow / foot anchor on sprites (0 = top, 1 = bottom). */
 export const SPRITE_ANCHOR_Y = 0.95;
