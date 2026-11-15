@@ -292,8 +292,14 @@ export function buildCatalogIslandEntities(
   return entities;
 }
 
-/** Native 1:1 island aspect — no vertical perspective squash. */
-export const ISO_Y = 1;
+/**
+ * God's-eye top-down: islandScaleY ≈ 1.10 × islandScaleX so the plateau
+ * reads wide/open from above (taller world-Y projection).
+ */
+export const ISO_Y = 1.1;
+
+/** Bottom-center contact shadow / foot anchor on sprites (0 = top, 1 = bottom). */
+export const SPRITE_ANCHOR_Y = 0.95;
 
 /** World props/buildings/crops scale relative to the island (for placement menu). */
 export const ENTITY_SCALE = 0.76;

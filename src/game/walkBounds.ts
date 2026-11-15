@@ -1,23 +1,24 @@
 import type { IslandId, Vec2 } from "./types";
 
 /**
- * Open oval grass plateau on the new round-island art (normalized UVs).
- * Tuned to sit inside the decorative rim: centerY ≈ 0.43, rx ≈ 0.34, ry ≈ 0.19.
+ * Expanded oval buildable/walkable plateau for god's-eye islands.
+ * Fills the inner terrain up to the decorative rim; front-bottom lip pulled
+ * inward (cy + ry stays above waterfalls).
  */
 export const OVAL_PLATEAU = {
   cx: 0.5,
-  cy: 0.43,
-  rx: 0.34,
-  ry: 0.19,
+  cy: 0.4,
+  rx: 0.4,
+  ry: 0.26,
 };
 
-/** Optional per-island micro-tunes (same oval family). */
+/** Per-island micro-tunes — same expanded oval family. */
 const ISLAND_OVALS: Record<IslandId, { cx: number; cy: number; rx: number; ry: number }> = {
-  meadow: { ...OVAL_PLATEAU },
-  lagoon: { cx: 0.5, cy: 0.43, rx: 0.34, ry: 0.19 },
-  snack: { cx: 0.5, cy: 0.435, rx: 0.335, ry: 0.19 },
-  retro: { cx: 0.5, cy: 0.43, rx: 0.34, ry: 0.185 },
-  hollow: { cx: 0.5, cy: 0.435, rx: 0.33, ry: 0.19 },
+  meadow: { cx: 0.5, cy: 0.4, rx: 0.4, ry: 0.26 },
+  lagoon: { cx: 0.5, cy: 0.4, rx: 0.4, ry: 0.265 },
+  snack: { cx: 0.5, cy: 0.405, rx: 0.395, ry: 0.26 },
+  retro: { cx: 0.5, cy: 0.4, rx: 0.4, ry: 0.255 },
+  hollow: { cx: 0.5, cy: 0.405, rx: 0.39, ry: 0.26 },
 };
 
 export function getIslandOval(island: IslandId) {
@@ -43,7 +44,6 @@ export function closestPointOnOval(
   if (Math.abs(dx) < 1e-9 && Math.abs(dy) < 1e-9) {
     return { x: oval.cx + oval.rx, y: oval.cy };
   }
-  // Map to unit circle, clamp radius, map back
   const ux = dx / oval.rx;
   const uy = dy / oval.ry;
   const len = Math.hypot(ux, uy);

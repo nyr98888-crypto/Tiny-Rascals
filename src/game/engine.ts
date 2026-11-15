@@ -1,6 +1,11 @@
 import manifest from "@/data/assetManifest.json";
 import { CozyAudio } from "./audio";
-import { buildIslandEntities, landToScreen, ISO_Y } from "./layouts";
+import {
+  buildIslandEntities,
+  landToScreen,
+  ISO_Y,
+  SPRITE_ANCHOR_Y,
+} from "./layouts";
 import { Pose, poseFromVelocity } from "./poses";
 import { loadSave, writeSave, canAfford, spend, UPGRADE_COSTS, NEXT_ISLAND } from "./save";
 import { TextureManager } from "./textures";
@@ -78,9 +83,9 @@ export class GameEngine {
   /** Land texture pixel size (pre-isometric flatten). */
   landTexW = 2048;
   landTexH = 868;
-  /** Display size at true 1:1 native aspect (islandScaleY === islandScaleX). */
+  /** Display size: landH = texH * ISO_Y (god's-eye ~1.10× taller projection). */
   landW = 2048;
-  landH = 868;
+  landH = 868 * ISO_Y;
   landX = 0;
   landY = 0;
 
@@ -143,7 +148,7 @@ export class GameEngine {
       this.save.resources.gems += decoded.gems ?? 1;
       if (decoded.pet && !this.save.discovered.includes(decoded.pet)) {
         this.save.discovered.push(decoded.pet);
-        this.spawnPet(decoded.pet, 0.5, 0.43);
+        this.spawnPet(decoded.pet, 0.5, 0.4);
       }
       this.giftMessage = `Care package from ${decoded.from ?? "a friend"} arrived by boat!`;
       this.audio.gift();
@@ -268,7 +273,7 @@ export class GameEngine {
     }));
   }
 
-  spawnPet(petId: string, x = 0.5, y = 0.43) {
+  spawnPet(petId: string, x = 0.5, y = 0.4) {
     const island = this.save.activeIsland;
     const r = freshRascal(`${island}-rascal-${Date.now()}`, petId, x, y);
     r.pose = Pose.WAVE_HELLO;
@@ -338,21 +343,20 @@ export class GameEngine {
   }
 
   /**
-   * Fit the full oval island (incl. waterfalls / orbiting islets) inside ~80% of
-   * the viewport on both axes — balanced sky breathing room all around.
+   * Island fills ~90% of viewport width (minZoom floor). Height soft-caps so the
+   * taller god's-eye projection still clears the island-switcher UI.
    */
   private computeFitZoom() {
     const w = Math.max(320, this.canvas.clientWidth || 1280);
     const h = Math.max(240, this.canvas.clientHeight || 720);
-    return Math.min(
-      (w * 0.8) / Math.max(1, this.landW),
-      (h * 0.8) / Math.max(1, this.landH)
-    );
+    const byWidth = (w * 0.9) / Math.max(1, this.landW);
+    const byHeight = (h * 0.92) / Math.max(1, this.landH);
+    return Math.min(byWidth, byHeight);
   }
 
   private recomputeZoomLimits() {
     const fit = this.computeFitZoom();
-    // 1.0x = 80% framed island (minZoom floor); close-ups up to 2.2x
+    // 1.0x = ~90% width framed island (minZoom); close-ups up to 2.2x
     this.minZoom = fit;
     this.maxZoom = fit * 2.2;
     this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || fit));
@@ -365,11 +369,11 @@ export class GameEngine {
     const fit = this.computeFitZoom();
     this.targetZoom = fit;
     this.zoom = fit;
-    // Center on the open oval plateau (≈ UV 0.5, 0.43)
+    // Vertical anchor ≈ 0.46 — waterfalls clear bottom island-switcher UI
     this.landX = -this.landW / 2;
     this.landY = -this.landH / 2;
     this.camX = this.landX + this.landW * 0.5;
-    this.camY = this.landY + this.landH * 0.43;
+    this.camY = this.landY + this.landH * 0.46;
     this.clampCamera();
   }
 
@@ -447,8 +451,8 @@ export class GameEngine {
     );
     if (!candidates.length) return;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
-    this.spawnPet(pick.id, 0.5, 0.43);
-    this.burst(0.5, 0.43, "#7dcea0", 14);
+    this.spawnPet(pick.id, 0.5, 0.4);
+    this.burst(0.5, 0.4, "#7dcea0", 14);
   }
 
   private bindInput() {
@@ -486,8 +490,9 @@ export class GameEngine {
     for (let i = this.rascals.length - 1; i >= 0; i--) {
       const r = this.rascals[i];
       const p = landToScreen(r.x, r.y, this.landX, this.landY, this.landW, this.landH);
-      const s = 70;
-      if (Math.abs(wx - p.x) < s * 0.45 && wy < p.y + 10 && wy > p.y - s) return r;
+      const s = 64;
+      const top = p.y - s * SPRITE_ANCHOR_Y;
+      if (Math.abs(wx - p.x) < s * 0.45 && wy < p.y + 10 && wy > top) return r;
     }
     return null;
   }
@@ -503,7 +508,8 @@ export class GameEngine {
       if (!spr) continue;
       const dw = Math.max(40, spr.w * e.scale);
       const dh = Math.max(40, spr.h * e.scale);
-      if (wx > p.x - dw / 2 && wx < p.x + dw / 2 && wy > p.y - dh && wy < p.y + 10) {
+      const top = p.y - dh * SPRITE_ANCHOR_Y;
+      if (wx > p.x - dw / 2 && wx < p.x + dw / 2 && wy > top && wy < p.y + 10) {
         return e;
       }
     }
@@ -1182,8 +1188,8 @@ export class GameEngine {
         }
       } else {
         const wander = this.clampOnIsland(
-          0.5 + (Math.random() - 0.5) * 0.6,
-          0.43 + (Math.random() - 0.5) * 0.34
+          0.5 + (Math.random() - 0.5) * 0.72,
+          0.4 + (Math.random() - 0.5) * 0.48
         );
         r.target = wander;
         r.task = null;
@@ -1439,12 +1445,13 @@ export class GameEngine {
     const p = landToScreen(e.x, e.y, this.landX, this.landY, this.landW, this.landH);
     const dw = spr.w * e.scale;
     const dh = spr.h * e.scale;
-    const drawY = p.y - lift;
+    // Anchor at bottom-center contact (~0.95) so buildings sit flat on the ground plane
+    const imgTop = p.y - dh * SPRITE_ANCHOR_Y - lift;
 
-    // Shadow (stays on ground while sprite lifts)
+    // Shadow at foot contact
     this.ctx.fillStyle = `rgba(0,0,0,${0.22 + night * 0.1 + (dragging ? 0.08 : 0)})`;
     this.ctx.beginPath();
-    this.ctx.ellipse(p.x, p.y + 4, dw * 0.28 * (dragging ? 0.85 : 1), dh * 0.05, 0, 0, Math.PI * 2);
+    this.ctx.ellipse(p.x, p.y + 2, dw * 0.28 * (dragging ? 0.85 : 1), Math.max(6, dh * 0.04), 0, 0, Math.PI * 2);
     this.ctx.fill();
 
     // Golden selection ring in decorate mode
@@ -1454,11 +1461,11 @@ export class GameEngine {
         : "rgba(224, 180, 74, 0.55)";
       this.ctx.lineWidth = dragging ? 2.5 : 1.5;
       this.ctx.beginPath();
-      this.ctx.ellipse(p.x, p.y + 2, Math.max(18, dw * 0.32), Math.max(8, dh * 0.06), 0, 0, Math.PI * 2);
+      this.ctx.ellipse(p.x, p.y + 1, Math.max(18, dw * 0.32), Math.max(8, dh * 0.05), 0, 0, Math.PI * 2);
       this.ctx.stroke();
     }
 
-    this.ctx.drawImage(img, p.x - dw / 2, drawY - dh, dw, dh);
+    this.ctx.drawImage(img, p.x - dw / 2, imgTop, dw, dh);
   }
 
   private drawRascal(r: Rascal) {
@@ -1474,11 +1481,13 @@ export class GameEngine {
     const bounceY = r.bounce > 0 ? Math.sin(r.bounce * Math.PI) * -18 : 0;
     const scaleY = r.squash;
     const scaleX = 2 - r.squash;
-    const size = 64; // ~24% smaller than 84 — roomy lawns on the wide island
+    const size = 64;
+    const footOffset = size * SPRITE_ANCHOR_Y;
 
+    // Contact shadow on the top-down ground plane
     this.ctx.fillStyle = "rgba(0,0,0,0.25)";
     this.ctx.beginPath();
-    this.ctx.ellipse(p.x, p.y + 4, size * 0.28, 8, 0, 0, Math.PI * 2);
+    this.ctx.ellipse(p.x, p.y + 2, size * 0.28, 7, 0, 0, Math.PI * 2);
     this.ctx.fill();
 
     this.ctx.save();
@@ -1494,7 +1503,7 @@ export class GameEngine {
       fs,
       fs,
       -size / 2,
-      -size,
+      -footOffset,
       size,
       size
     );

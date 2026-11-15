@@ -33,34 +33,40 @@ function defaultIsland(unlocked: boolean): IslandProgress {
 export function defaultSave(starterPets: string[]): GameSave {
   const islands = {} as Record<IslandId, IslandProgress>;
   for (const id of ISLAND_ORDER) {
-    islands[id] = defaultIsland(id === "meadow");
+    // Sandbox preview: all biomes unlocked with roaming Rascals
+    islands[id] = defaultIsland(true);
   }
   islands.meadow.dockRepaired = false;
 
   const spawned = {} as GameSave["spawned"];
   for (const id of ISLAND_ORDER) spawned[id] = [];
-  const picks = starterPets.slice(0, 8);
-  picks.forEach((petId, i) => {
-    // Scatter across the open oval plateau (center ≈ 0.5, 0.43)
-    const col = i % 4;
-    const row = Math.floor(i / 4);
-    spawned.meadow.push({
-      petId,
-      x: 0.38 + col * 0.08,
-      y: 0.36 + row * 0.08,
-      xp: 0,
-      level: 1,
-    });
+  // At least a few Rascals on every biome to verify scale / walk bounds
+  const picks = starterPets.filter(Boolean);
+  const perIsland = Math.max(3, Math.ceil(Math.min(picks.length, 15) / ISLAND_ORDER.length));
+  ISLAND_ORDER.forEach((island, ii) => {
+    for (let k = 0; k < perIsland; k++) {
+      const petId = picks[(ii * perIsland + k) % picks.length] ?? picks[0];
+      if (!petId) continue;
+      const col = k % 3;
+      const row = Math.floor(k / 3);
+      spawned[island].push({
+        petId,
+        x: 0.4 + col * 0.1,
+        y: 0.34 + row * 0.08,
+        xp: 0,
+        level: 1,
+      });
+    }
   });
 
   return {
-    version: 5,
+    version: 6,
     activeIsland: "meadow",
     dayNight: 0.25,
     manualNight: null,
     resources: { wood: 12, berries: 8, crops: 4, gems: 0 },
     islands,
-    discovered: [...new Set(picks)],
+    discovered: [...new Set(Object.values(spawned).flatMap((list) => list.map((s) => s.petId)))],
     spawned,
     layoutOverrides: emptyLayouts(),
     lastSeen: Date.now(),
@@ -75,11 +81,14 @@ export function loadSave(starterPets: string[]): GameSave {
     const raw = localStorage.getItem(KEY);
     if (!raw) return defaultSave(starterPets);
     const parsed = JSON.parse(raw) as GameSave & { clutterOffsets?: Record<string, Vec2> };
-    if (![1, 2, 3, 4, 5].includes(parsed.version)) return defaultSave(starterPets);
+    if (![1, 2, 3, 4, 5, 6].includes(parsed.version)) return defaultSave(starterPets);
 
     if (!parsed.layoutOverrides) parsed.layoutOverrides = emptyLayouts();
     for (const id of ISLAND_ORDER) {
       if (!parsed.layoutOverrides[id]) parsed.layoutOverrides[id] = {};
+    }
+    if (!parsed.spawned) {
+      parsed.spawned = { meadow: [], lagoon: [], snack: [], retro: [], hollow: [] };
     }
 
     // v1→v2 cleared old clutter; v2→v3 promotes flat clutterOffsets into per-island maps
@@ -104,7 +113,33 @@ export function loadSave(starterPets: string[]): GameSave {
     if (parsed.version < 5) {
       parsed.layoutOverrides = emptyLayouts();
     }
-    parsed.version = 5;
+    // v5→v6: seed active Rascals on every island for god's-eye verification
+    if (parsed.version < 6) {
+      const pool =
+        starterPets.length > 0
+          ? starterPets
+          : parsed.discovered.length > 0
+            ? parsed.discovered
+            : ["axolotl", "shiba", "frog", "otter", "penguin"];
+      for (const island of ISLAND_ORDER) {
+        if (!parsed.spawned[island]) parsed.spawned[island] = [];
+        if (parsed.spawned[island].length > 0) continue;
+        for (let k = 0; k < 3; k++) {
+          const petId = pool[(ISLAND_ORDER.indexOf(island) * 3 + k) % pool.length];
+          parsed.spawned[island].push({
+            petId,
+            x: 0.4 + (k % 3) * 0.1,
+            y: 0.34 + Math.floor(k / 3) * 0.08,
+            xp: 0,
+            level: 1,
+          });
+          if (!parsed.discovered.includes(petId)) parsed.discovered.push(petId);
+        }
+        parsed.islands[island].unlocked = true;
+      }
+      parsed.sandboxPreviewAll = true;
+    }
+    parsed.version = 6;
 
     applyOfflineIdle(parsed);
     return parsed;
