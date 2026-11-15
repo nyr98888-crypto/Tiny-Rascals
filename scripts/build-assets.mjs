@@ -31,16 +31,43 @@ const ALPHA_CONTENT = 15;
 const BOTTOM_PAD = 8;
 
 const POSE_NAMES = [
-  // sheet1 chores 0-8
-  "watering", "digging", "carry_berries", "cooking", "sweeping", "carry_logs",
-  "bathing", "sleeping", "wipe_sweat",
-  // sheet2 movement 9-17
-  "walk_left", "walk_front", "walk_right", "crouch", "jump_cheer", "happy_dance",
-  "sprint_right", "trip_fall", "idle",
-  // sheet3 emotes 18-26
-  "celebrate", "laugh", "eat_berry", "heart_eyes", "surprised", "shy",
-  "grumpy", "dizzy_stars", "wave_hello",
+  // sheet 1 — Working & Care
+  "watering", "digging", "berries", "cooking", "sweeping", "wood",
+  "bathing", "sleeping", "tired",
+  // sheet 2 — Movement & Physics
+  "walk_left", "walk_step", "walk_right", "crouch", "jump", "land",
+  "sprint", "trip", "idle_front",
+  // sheet 3 — Emotions
+  "cheer", "laugh", "eat", "heart_eyes", "surprised", "smirk",
+  "grumpy", "dizzy", "wave",
 ];
+
+/** Resolve standardized sheet files: prefer `1`/`2`/`3`, fall back to sheet1–3. */
+function resolveRascalSheets(files) {
+  const lower = new Map(files.map((f) => [f.toLowerCase(), f]));
+  const pick = (names) => {
+    for (const n of names) {
+      if (lower.has(n)) return lower.get(n);
+    }
+    return null;
+  };
+  const out = [];
+  const s1 = pick(["1.png", "1.jpg", "1.jpeg", "1.webp", "sheet1.png", "sheet1.jpg"]);
+  const s2 = pick(["2.png", "2.jpg", "2.jpeg", "2.webp", "sheet2.png", "sheet2.jpg"]);
+  const s3 = pick(["3.png", "3.jpg", "3.jpeg", "3.webp", "sheet3.png", "sheet3.jpg"]);
+  if (s1) out.push({ key: "1", file: s1 });
+  if (s2) out.push({ key: "2", file: s2 });
+  if (s3) out.push({ key: "3", file: s3 });
+  return out;
+}
+
+async function emptyFrameBuf() {
+  return sharp({
+    create: { width: FRAME, height: FRAME, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+  })
+    .png()
+    .toBuffer();
+}
 
 /** @type {Record<string, string[]>} */
 const SHEET_FRAME_IDS = {
@@ -588,9 +615,8 @@ async function processRascal(id) {
   const folder = path.join(petsDir, id);
   const files = fs.readdirSync(folder);
   const iconFile = files.find((f) => /^icon\./i.test(f));
-  const sheets = ["sheet1.png", "sheet2.png", "sheet3.png"]
-    .map((n) => files.find((f) => f.toLowerCase() === n))
-    .filter(Boolean);
+  // Prefer standardized `1`/`2`/`3`; fall back to sheet1–3. Never mutate petsDir.
+  const sheets = resolveRascalSheets(files);
 
   const outDir = path.join(outRascals, id);
   ensureDir(outDir);
@@ -600,6 +626,9 @@ async function processRascal(id) {
     name: titleFromId(id),
     icon: null,
     atlas: null,
+    sheets: { "1": null, "2": null, "3": null },
+    /** Public read-only paths for calibrator UI (never written by pipeline). */
+    srcSheets: { "1": null, "2": null, "3": null },
     frameSize: FRAME,
     poseCount: 0,
   };
@@ -614,20 +643,34 @@ async function processRascal(id) {
     entry.icon = `/assets-built/rascals/${id}/icon.png`;
   }
 
-  if (sheets.length < 3) {
-    return { entry, warning: `only ${sheets.length}/3 sheets` };
+  if (sheets.length === 0) {
+    return { entry, warning: "no sheets (need 1/2/3 or sheet1–3)" };
   }
 
+  // Always emit a 27-pose atlas (pad missing sheets) so pose indices stay stable.
   const frames = [];
-  for (const sheetName of sheets) {
+  const byKey = Object.fromEntries(sheets.map((s) => [s.key, s.file]));
+
+  for (const sheetKey of ["1", "2", "3"]) {
+    const sheetName = byKey[sheetKey];
+    if (!sheetName) {
+      const blank = await emptyFrameBuf();
+      for (let i = 0; i < 9; i++) frames.push(blank);
+      continue;
+    }
+
+    entry.srcSheets[sheetKey] = `/pets/${id}/${sheetName}`;
+
     const { data, width, height } = await loadRgba(path.join(folder, sheetName));
     const cellW = Math.floor(width / 3);
     const cellH = Math.floor(height / 3);
+
+    // Emit a cleaned 3×3 sheet copy under assets-built (source pets stay untouched)
+    const sheetFrames = [];
     for (let i = 0; i < 9; i++) {
       const col = i % 3;
       const row = Math.floor(i / 3);
       const cell = await extractCell(data, width, height, col, row, cellW, cellH);
-      // Remove pure-black sheet backgrounds; tight RGB<=14 keeps dark outlines
       const corners = [
         0,
         (cell.width - 1) * 4,
@@ -657,10 +700,33 @@ async function processRascal(id) {
           .png()
           .toBuffer();
       }
-      frames.push(await placeInFrame(spriteBuf));
+      const framed = await placeInFrame(spriteBuf);
+      sheetFrames.push(framed);
+      frames.push(framed);
     }
+
+    const sheetOut = path.join(outDir, `${sheetKey}.png`);
+    await sharp({
+      create: {
+        width: 3 * FRAME,
+        height: 3 * FRAME,
+        channels: 4,
+        background: { r: 0, g: 0, b: 0, alpha: 0 },
+      },
+    })
+      .composite(
+        sheetFrames.map((buf, i) => ({
+          input: buf,
+          left: (i % 3) * FRAME,
+          top: Math.floor(i / 3) * FRAME,
+        }))
+      )
+      .png()
+      .toFile(sheetOut);
+    entry.sheets[sheetKey] = `/assets-built/rascals/${id}/${sheetKey}.png`;
   }
 
+  // Combined atlas (3×9) for any legacy consumers — always 27 poses
   const composites = frames.map((buf, i) => ({
     input: buf,
     left: (i % ATLAS_COLS) * FRAME,
@@ -682,7 +748,9 @@ async function processRascal(id) {
 
   entry.atlas = `/assets-built/rascals/${id}/atlas.png`;
   entry.poseCount = frames.length;
-  return { entry };
+  const warning =
+    sheets.length < 3 ? `only ${sheets.length}/3 sheets (missing sheet will fall back)` : undefined;
+  return { entry, warning };
 }
 
 async function main() {
@@ -736,6 +804,8 @@ async function main() {
         name: titleFromId(id),
         icon: null,
         atlas: null,
+        sheets: { "1": null, "2": null, "3": null },
+        srcSheets: { "1": null, "2": null, "3": null },
         frameSize: FRAME,
         poseCount: 0,
       });

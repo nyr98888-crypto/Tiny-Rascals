@@ -7,6 +7,7 @@ import {
   SPRITE_ANCHOR_Y,
 } from "./layouts";
 import { Pose, poseFromVelocity } from "./poses";
+import { resolvePoseCell } from "./spriteMap";
 import { loadSave, writeSave, canAfford, spend, UPGRADE_COSTS, NEXT_ISLAND } from "./save";
 import { TextureManager } from "./textures";
 import { clampToWalkBounds, depthScaleAtY, randomPointInClearing } from "./walkBounds";
@@ -115,7 +116,9 @@ export class GameEngine {
     if (!ctx) throw new Error("2d context unavailable");
     this.ctx = ctx;
 
-    const starters = manifest.rascals.filter((r) => r.atlas).map((r) => r.id);
+    const starters = manifest.rascals
+      .filter((r) => r.atlas || r.sheets?.["1"] || r.sheets?.["2"])
+      .map((r) => r.id);
     this.save = loadSave(starters);
     this.audio.setMuted(this.save.muted);
     this.reloadIsland();
@@ -167,7 +170,11 @@ export class GameEngine {
       berries: 6,
       crops: 4,
       gems: 1,
-      pet: manifest.rascals.find((r) => r.atlas && !this.save.discovered.includes(r.id))?.id,
+      pet: manifest.rascals.find(
+        (r) =>
+          (r.atlas || r.sheets?.["1"] || r.sheets?.["2"]) &&
+          !this.save.discovered.includes(r.id)
+      )?.id,
       from: "Tiny Rascals",
     };
     const gift = btoa(JSON.stringify(payload));
@@ -226,6 +233,15 @@ export class GameEngine {
       if (pet?.atlas) {
         srcs.push(pet.atlas);
         keep.add(pet.atlas);
+      }
+      if (pet?.sheets) {
+        for (const key of ["1", "2", "3"] as const) {
+          const src = pet.sheets[key];
+          if (src) {
+            srcs.push(src);
+            keep.add(src);
+          }
+        }
       }
       if (pet?.icon) keep.add(pet.icon);
     }
@@ -454,7 +470,9 @@ export class GameEngine {
 
   private attractNewRascal() {
     const candidates = manifest.rascals.filter(
-      (r) => r.atlas && !this.save.discovered.includes(r.id)
+      (r) =>
+        (r.atlas || r.sheets?.["1"] || r.sheets?.["2"]) &&
+        !this.save.discovered.includes(r.id)
     );
     if (!candidates.length) return;
     const pick = candidates[Math.floor(Math.random() * candidates.length)];
@@ -596,10 +614,21 @@ export class GameEngine {
       if (move > 0.004) this.heldMoved = true;
       // Shake accumulation while held mid-air
       this.heldRascal.shake += move * 18;
+      // Mid-air shake → Sheet 2 jump / trip vibe
       if (this.heldRascal.shake > 0.35) {
-        this.heldRascal.pose = Pose.SURPRISED;
+        this.heldRascal.pose = this.heldRascal.shake > 0.8 ? Pose.TRIP : Pose.JUMP;
       }
       return;
+    }
+    // Hover → Sheet 3 wave / heart-eyes (idle wander only)
+    if (
+      this.hoverRascal &&
+      !this.hoverRascal.held &&
+      this.hoverRascal.poseTimer <= 0 &&
+      this.hoverRascal.state === "WANDER_PATH"
+    ) {
+      this.hoverRascal.pose =
+        this.hoverRascal.level > 1 ? Pose.HEART_EYES : Pose.WAVE;
     }
     if (this.dragEntity) {
       const raw = this.worldToNorm(world.x, world.y);
@@ -653,12 +682,12 @@ export class GameEngine {
       const wasClick = elapsed < 220 && travel < 0.03 && !this.heldMoved;
 
       if (wasClick) {
-        // Click cheer: CROUCH → JUMP_CHEER → CELEBRATE
-        this.startPoseChain(r, [Pose.CROUCH, Pose.JUMP_CHEER, Pose.CELEBRATE], "click", 0.45);
+        // Click: Sheet2 Jump/Land → Sheet3 Cheer
+        this.startPoseChain(r, [Pose.CROUCH, Pose.JUMP, Pose.LAND, Pose.CHEER], "click", 0.4);
         this.audio.chirp();
       } else if (r.shake > 0.8) {
-        // Shaken in mid-air → dizzy on landing
-        this.startPoseChain(r, [Pose.DIZZY_STARS, Pose.SHY], "trip_recover", 0.7);
+        // Dropped after shake → Sheet2 trip → Sheet3 dizzy/laugh
+        this.startPoseChain(r, [Pose.TRIP, Pose.DIZZY, Pose.LAUGH], "trip_recover", 0.55);
         this.audio.pop();
       } else {
         const prop = this.nearestInteractable(r.x, r.y, 0.08);
@@ -929,7 +958,7 @@ export class GameEngine {
     r.xp += amount;
     if (r.xp > r.level * 20) {
       r.level += 1;
-      this.startPoseChain(r, [Pose.CELEBRATE, Pose.JUMP_CHEER], "click", 0.55);
+      this.startPoseChain(r, [Pose.JUMP, Pose.LAND, Pose.CHEER], "milestone", 0.45);
       this.burstNorm(r.x, r.y, "#e0b44a", 12);
     }
   }
@@ -1448,19 +1477,32 @@ export class GameEngine {
 
   private drawRascal(r: Rascal) {
     const pet = manifest.rascals.find((p) => p.id === r.petId);
-    if (!pet?.atlas) return;
-    const img = this.textures.get(pet.atlas);
+    if (!pet) return;
+    const { sheet, row, col } = resolvePoseCell(r.petId, r.pose);
+    // Prefer the pose's sheet; if missing, use combined atlas (3×9) with global pose index
+    let sheetSrc = pet.sheets?.[sheet] ?? null;
+    let srcRow = row;
+    let srcCol = col;
+    if (!sheetSrc) {
+      if (pet.atlas) {
+        sheetSrc = pet.atlas;
+        const frame = Math.max(0, Math.min(26, r.pose | 0));
+        srcCol = frame % 3;
+        srcRow = Math.floor(frame / 3);
+      } else {
+        sheetSrc = pet.sheets?.["2"] || pet.sheets?.["1"] || pet.sheets?.["3"] || null;
+      }
+    }
+    if (!sheetSrc) return;
+    const img = this.textures.get(sheetSrc);
     if (!img) return;
     const p = landToScreen(r.x, r.y, this.landX, this.landY, this.landW, this.landH);
-    const frame = Math.max(0, Math.min(26, r.pose | 0));
-    const col = frame % 3;
-    const row = Math.floor(frame / 3);
     const fs = pet.frameSize || 160;
     const bounceY = r.bounce > 0 ? Math.sin(r.bounce * Math.PI) * -18 : 0;
     const scaleY = r.squash;
     const scaleX = 2 - r.squash;
     const depth = depthScaleAtY(r.y, this.save.activeIsland);
-    const size = 80 * depth; // ~1.25× prior 64 — grounded on the flat floor
+    const size = 80 * depth;
     const footOffset = size * SPRITE_ANCHOR_Y;
 
     // Crisp dark contact shadow under feet (anchorY = 0.95)
@@ -1477,8 +1519,8 @@ export class GameEngine {
     }
     this.ctx.drawImage(
       img,
-      col * fs,
-      row * fs,
+      srcCol * fs,
+      srcRow * fs,
       fs,
       fs,
       -size / 2,

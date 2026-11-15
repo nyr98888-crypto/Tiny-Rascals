@@ -22,6 +22,7 @@ export type RascalTask =
   | "social"
   | "click"
   | "trip_recover"
+  | "milestone"
   | null;
 
 export type EntityKind = "building" | "prop" | "crop" | "clutter" | "rascal";
