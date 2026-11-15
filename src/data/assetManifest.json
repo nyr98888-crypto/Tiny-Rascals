@@ -1,0 +1,2102 @@
+{
+  "generatedAt": "2026-11-15T18:27:34.927Z",
+  "lands": {
+    "meadow": {
+      "src": "/assets-built/lands/land-meadow.png",
+      "w": 2048,
+      "h": 832
+    },
+    "lagoon": {
+      "src": "/assets-built/lands/land-lagoon.png",
+      "w": 2048,
+      "h": 836
+    },
+    "snack": {
+      "src": "/assets-built/lands/land-snack.png",
+      "w": 2048,
+      "h": 959
+    },
+    "retro": {
+      "src": "/assets-built/lands/land-retro.png",
+      "w": 2048,
+      "h": 932
+    },
+    "hollow": {
+      "src": "/assets-built/lands/land-hollow.png",
+      "w": 2048,
+      "h": 782
+    }
+  },
+  "backdrops": {
+    "meadow": {
+      "day": "/assets-built/backdrops/backdrop-meadow-day.png",
+      "night": "/assets-built/backdrops/backdrop-meadow-night.png"
+    },
+    "lagoon": {
+      "day": "/assets-built/backdrops/backdrop-lagoon-day.png",
+      "night": "/assets-built/backdrops/backdrop-lagoon-night.png"
+    },
+    "snack": {
+      "day": "/assets-built/backdrops/backdrop-snack-day.png",
+      "night": "/assets-built/backdrops/backdrop-snack-night.png"
+    },
+    "retro": {
+      "day": "/assets-built/backdrops/backdrop-retro-day.png",
+      "night": "/assets-built/backdrops/backdrop-retro-night.png"
+    },
+    "hollow": {
+      "day": "/assets-built/backdrops/backdrop-hollow-day.png",
+      "night": "/assets-built/backdrops/backdrop-hollow-night.png"
+    }
+  },
+  "world": {
+    "buildings": {
+      "tier1": {
+        "shared": [
+          "building_shed",
+          "building_greenhouse",
+          "building_spa",
+          "building_kitchen",
+          "building_clubhouse",
+          "building_barn_house",
+          "building_workshop",
+          "building_cottage",
+          "building_harbor_t1"
+        ],
+        "themes": {
+          "lagoon": [
+            "theme_lagoon_1",
+            "theme_lagoon_2",
+            "theme_lagoon_3",
+            "theme_lagoon_4",
+            "theme_lagoon_5",
+            "theme_lagoon_6",
+            "theme_lagoon_7",
+            "theme_lagoon_8",
+            "theme_lagoon_9"
+          ],
+          "snack": [
+            "theme_snack_1",
+            "theme_snack_2",
+            "theme_snack_3",
+            "theme_snack_4",
+            "theme_snack_5",
+            "theme_snack_6",
+            "theme_snack_7",
+            "theme_snack_8",
+            "theme_snack_9"
+          ],
+          "retro": [
+            "theme_retro_1",
+            "theme_retro_2",
+            "theme_retro_3",
+            "theme_retro_4",
+            "theme_retro_5",
+            "theme_retro_6",
+            "theme_retro_7",
+            "theme_retro_8",
+            "theme_retro_9"
+          ],
+          "hollow": [
+            "theme_hollow_1",
+            "theme_hollow_2",
+            "theme_hollow_3",
+            "theme_hollow_4",
+            "theme_hollow_5",
+            "theme_hollow_6",
+            "theme_hollow_7",
+            "theme_hollow_8",
+            "theme_hollow_9"
+          ]
+        }
+      },
+      "tier2": {
+        "meadow": [
+          "upgrade_meadow_q1",
+          "upgrade_meadow_q2",
+          "upgrade_meadow_q3",
+          "upgrade_meadow_q4",
+          "upgrade_meadow_5",
+          "upgrade_meadow_6",
+          "upgrade_meadow_7",
+          "upgrade_meadow_8",
+          "upgrade_meadow_harbor"
+        ],
+        "lagoon": [
+          "upgrade_lagoon_q1",
+          "upgrade_lagoon_q2",
+          "upgrade_lagoon_q3",
+          "upgrade_lagoon_q4",
+          "upgrade_lagoon_5",
+          "upgrade_lagoon_6",
+          "upgrade_lagoon_7",
+          "upgrade_lagoon_8",
+          "upgrade_lagoon_harbor"
+        ],
+        "snack": [
+          "upgrade_snack_q1",
+          "upgrade_snack_q2",
+          "upgrade_snack_q3",
+          "upgrade_snack_q4",
+          "upgrade_snack_5",
+          "upgrade_snack_6",
+          "upgrade_snack_7",
+          "upgrade_snack_8",
+          "upgrade_snack_harbor"
+        ],
+        "retro": [
+          "upgrade_retro_q1",
+          "upgrade_retro_q2",
+          "upgrade_retro_q3",
+          "upgrade_retro_q4",
+          "upgrade_retro_5",
+          "upgrade_retro_6",
+          "upgrade_retro_7",
+          "upgrade_retro_8",
+          "upgrade_retro_harbor"
+        ],
+        "hollow": [
+          "upgrade_hollow_q1",
+          "upgrade_hollow_q2",
+          "upgrade_hollow_q3",
+          "upgrade_hollow_q4",
+          "upgrade_hollow_5",
+          "upgrade_hollow_6",
+          "upgrade_hollow_7",
+          "upgrade_hollow_8",
+          "upgrade_hollow_harbor"
+        ]
+      },
+      "tier3": {
+        "meadow": [
+          "upgrade_meadow_t3_1",
+          "upgrade_meadow_t3_2",
+          "upgrade_meadow_t3_3",
+          "upgrade_meadow_t3_4",
+          "upgrade_meadow_t3_5",
+          "upgrade_meadow_t3_6",
+          "upgrade_meadow_t3_7",
+          "upgrade_meadow_t3_8",
+          "upgrade_meadow_t3_harbor"
+        ],
+        "lagoon": [
+          "upgrade_lagoon_t3_1",
+          "upgrade_lagoon_t3_2",
+          "upgrade_lagoon_t3_3",
+          "upgrade_lagoon_t3_4",
+          "upgrade_lagoon_t3_5",
+          "upgrade_lagoon_t3_6",
+          "upgrade_lagoon_t3_7",
+          "upgrade_lagoon_t3_8",
+          "upgrade_lagoon_t3_harbor"
+        ],
+        "snack": [
+          "upgrade_snack_t3_1",
+          "upgrade_snack_t3_2",
+          "upgrade_snack_t3_3",
+          "upgrade_snack_t3_4",
+          "upgrade_snack_t3_5",
+          "upgrade_snack_t3_6",
+          "upgrade_snack_t3_7",
+          "upgrade_snack_t3_8",
+          "upgrade_snack_t3_harbor"
+        ],
+        "retro": [
+          "upgrade_retro_t3_1",
+          "upgrade_retro_t3_2",
+          "upgrade_retro_t3_3",
+          "upgrade_retro_t3_4",
+          "upgrade_retro_t3_5",
+          "upgrade_retro_t3_6",
+          "upgrade_retro_t3_7",
+          "upgrade_retro_t3_8",
+          "upgrade_retro_t3_harbor"
+        ],
+        "hollow": [
+          "upgrade_hollow_t3_1",
+          "upgrade_hollow_t3_2",
+          "upgrade_hollow_t3_3",
+          "upgrade_hollow_t3_4",
+          "upgrade_hollow_t3_5",
+          "upgrade_hollow_t3_6",
+          "upgrade_hollow_t3_7",
+          "upgrade_hollow_t3_8",
+          "upgrade_hollow_t3_harbor"
+        ]
+      }
+    },
+    "crops": {
+      "tier1": [
+        "crop_radish_1",
+        "crop_radish_2",
+        "crop_radish_3",
+        "crop_corn_1",
+        "crop_corn_2",
+        "crop_corn_3",
+        "crop_pumpkin_1",
+        "crop_pumpkin_2",
+        "crop_pumpkin_3"
+      ],
+      "tier2": [
+        "crop_pineapple_1",
+        "crop_pineapple_2",
+        "crop_pineapple_3",
+        "crop_strawberry_1",
+        "crop_strawberry_2",
+        "crop_strawberry_3",
+        "crop_melon_1",
+        "crop_melon_2",
+        "crop_melon_3"
+      ],
+      "tier3": [
+        "crop_starfruit_1",
+        "crop_starfruit_2",
+        "crop_starfruit_3",
+        "crop_moonberry_1",
+        "crop_moonberry_2",
+        "crop_moonberry_3",
+        "crop_dragonfruit_1",
+        "crop_dragonfruit_2",
+        "crop_dragonfruit_3"
+      ]
+    },
+    "props": {
+      "tier1": [
+        "prop_wash_tub",
+        "prop_straw_nest",
+        "prop_barn",
+        "prop_wood_tree",
+        "prop_berry_bush",
+        "prop_soil_dry",
+        "prop_soil_watered",
+        "prop_signpost",
+        "prop_egg_nest"
+      ],
+      "tier2": [
+        "prop_t2_stone_bath",
+        "prop_t2_velvet_bed",
+        "prop_t2_stone_barn",
+        "prop_t2_cherry_tree",
+        "prop_t2_honey_bush",
+        "prop_t2_raised_dry",
+        "prop_t2_raised_watered",
+        "prop_t2_lantern_sign",
+        "prop_t2_golden_egg"
+      ],
+      "tier3": [
+        "prop_t3_marble_fountain",
+        "prop_t3_canopy_bed",
+        "prop_t3_guild_barn",
+        "prop_t3_spirit_tree",
+        "prop_t3_crystal_bush",
+        "prop_t3_crystal_dry",
+        "prop_t3_crystal_watered",
+        "prop_t3_royal_sign",
+        "prop_t3_dragon_egg"
+      ]
+    },
+    "clutter": {
+      "tier1": [
+        "clutter_bench",
+        "clutter_campfire",
+        "clutter_picnic",
+        "clutter_fence",
+        "clutter_lantern",
+        "clutter_flowers",
+        "clutter_mailbox",
+        "clutter_gift_rowboat",
+        "clutter_leaves"
+      ],
+      "tier2": [
+        "clutter_t2_oak_bench",
+        "clutter_t2_stone_bonfire",
+        "clutter_t2_picnic",
+        "clutter_t2_flower_fence",
+        "clutter_t2_iron_lamp",
+        "clutter_t2_flowerbed",
+        "clutter_t2_birdhouse",
+        "clutter_t2_sailboat",
+        "clutter_t2_glow_leaves"
+      ],
+      "tier3": [
+        "clutter_t3_marble_bench",
+        "clutter_t3_brazier",
+        "clutter_t3_pavilion",
+        "clutter_t3_balustrade",
+        "clutter_t3_crystal_lantern",
+        "clutter_t3_fairy_garden",
+        "clutter_t3_owl_post",
+        "clutter_t3_clipper",
+        "clutter_t3_star_leaves"
+      ]
+    }
+  },
+  "worldSprites": {
+    "building_shed": {
+      "src": "/assets-built/world/building_shed.png",
+      "w": 262,
+      "h": 290
+    },
+    "building_greenhouse": {
+      "src": "/assets-built/world/building_greenhouse.png",
+      "w": 325,
+      "h": 329
+    },
+    "building_spa": {
+      "src": "/assets-built/world/building_spa.png",
+      "w": 300,
+      "h": 287
+    },
+    "building_kitchen": {
+      "src": "/assets-built/world/building_kitchen.png",
+      "w": 248,
+      "h": 317
+    },
+    "building_clubhouse": {
+      "src": "/assets-built/world/building_clubhouse.png",
+      "w": 266,
+      "h": 341
+    },
+    "building_barn_house": {
+      "src": "/assets-built/world/building_barn_house.png",
+      "w": 309,
+      "h": 276
+    },
+    "building_workshop": {
+      "src": "/assets-built/world/building_workshop.png",
+      "w": 308,
+      "h": 312
+    },
+    "building_cottage": {
+      "src": "/assets-built/world/building_cottage.png",
+      "w": 314,
+      "h": 321
+    },
+    "building_harbor_t1": {
+      "src": "/assets-built/world/building_harbor_t1.png",
+      "w": 270,
+      "h": 280
+    },
+    "theme_lagoon_1": {
+      "src": "/assets-built/world/theme_lagoon_1.png",
+      "w": 295,
+      "h": 302
+    },
+    "theme_lagoon_2": {
+      "src": "/assets-built/world/theme_lagoon_2.png",
+      "w": 263,
+      "h": 297
+    },
+    "theme_lagoon_3": {
+      "src": "/assets-built/world/theme_lagoon_3.png",
+      "w": 305,
+      "h": 238
+    },
+    "theme_lagoon_4": {
+      "src": "/assets-built/world/theme_lagoon_4.png",
+      "w": 291,
+      "h": 254
+    },
+    "theme_lagoon_5": {
+      "src": "/assets-built/world/theme_lagoon_5.png",
+      "w": 244,
+      "h": 268
+    },
+    "theme_lagoon_6": {
+      "src": "/assets-built/world/theme_lagoon_6.png",
+      "w": 295,
+      "h": 230
+    },
+    "theme_lagoon_7": {
+      "src": "/assets-built/world/theme_lagoon_7.png",
+      "w": 109,
+      "h": 306
+    },
+    "theme_lagoon_8": {
+      "src": "/assets-built/world/theme_lagoon_8.png",
+      "w": 294,
+      "h": 238
+    },
+    "theme_lagoon_9": {
+      "src": "/assets-built/world/theme_lagoon_9.png",
+      "w": 299,
+      "h": 265
+    },
+    "theme_snack_1": {
+      "src": "/assets-built/world/theme_snack_1.png",
+      "w": 272,
+      "h": 284
+    },
+    "theme_snack_2": {
+      "src": "/assets-built/world/theme_snack_2.png",
+      "w": 277,
+      "h": 284
+    },
+    "theme_snack_3": {
+      "src": "/assets-built/world/theme_snack_3.png",
+      "w": 284,
+      "h": 290
+    },
+    "theme_snack_4": {
+      "src": "/assets-built/world/theme_snack_4.png",
+      "w": 266,
+      "h": 274
+    },
+    "theme_snack_5": {
+      "src": "/assets-built/world/theme_snack_5.png",
+      "w": 74,
+      "h": 298
+    },
+    "theme_snack_6": {
+      "src": "/assets-built/world/theme_snack_6.png",
+      "w": 266,
+      "h": 234
+    },
+    "theme_snack_7": {
+      "src": "/assets-built/world/theme_snack_7.png",
+      "w": 296,
+      "h": 224
+    },
+    "theme_snack_8": {
+      "src": "/assets-built/world/theme_snack_8.png",
+      "w": 217,
+      "h": 284
+    },
+    "theme_snack_9": {
+      "src": "/assets-built/world/theme_snack_9.png",
+      "w": 260,
+      "h": 290
+    },
+    "theme_retro_1": {
+      "src": "/assets-built/world/theme_retro_1.png",
+      "w": 178,
+      "h": 284
+    },
+    "theme_retro_2": {
+      "src": "/assets-built/world/theme_retro_2.png",
+      "w": 264,
+      "h": 259
+    },
+    "theme_retro_3": {
+      "src": "/assets-built/world/theme_retro_3.png",
+      "w": 268,
+      "h": 256
+    },
+    "theme_retro_4": {
+      "src": "/assets-built/world/theme_retro_4.png",
+      "w": 169,
+      "h": 274
+    },
+    "theme_retro_5": {
+      "src": "/assets-built/world/theme_retro_5.png",
+      "w": 239,
+      "h": 254
+    },
+    "theme_retro_6": {
+      "src": "/assets-built/world/theme_retro_6.png",
+      "w": 126,
+      "h": 291
+    },
+    "theme_retro_7": {
+      "src": "/assets-built/world/theme_retro_7.png",
+      "w": 252,
+      "h": 237
+    },
+    "theme_retro_8": {
+      "src": "/assets-built/world/theme_retro_8.png",
+      "w": 251,
+      "h": 218
+    },
+    "theme_retro_9": {
+      "src": "/assets-built/world/theme_retro_9.png",
+      "w": 238,
+      "h": 250
+    },
+    "theme_hollow_1": {
+      "src": "/assets-built/world/theme_hollow_1.png",
+      "w": 285,
+      "h": 311
+    },
+    "theme_hollow_2": {
+      "src": "/assets-built/world/theme_hollow_2.png",
+      "w": 328,
+      "h": 311
+    },
+    "theme_hollow_3": {
+      "src": "/assets-built/world/theme_hollow_3.png",
+      "w": 243,
+      "h": 271
+    },
+    "theme_hollow_4": {
+      "src": "/assets-built/world/theme_hollow_4.png",
+      "w": 276,
+      "h": 310
+    },
+    "theme_hollow_5": {
+      "src": "/assets-built/world/theme_hollow_5.png",
+      "w": 239,
+      "h": 256
+    },
+    "theme_hollow_6": {
+      "src": "/assets-built/world/theme_hollow_6.png",
+      "w": 158,
+      "h": 291
+    },
+    "theme_hollow_7": {
+      "src": "/assets-built/world/theme_hollow_7.png",
+      "w": 307,
+      "h": 228
+    },
+    "theme_hollow_8": {
+      "src": "/assets-built/world/theme_hollow_8.png",
+      "w": 340,
+      "h": 244
+    },
+    "theme_hollow_9": {
+      "src": "/assets-built/world/theme_hollow_9.png",
+      "w": 228,
+      "h": 242
+    },
+    "upgrade_meadow_q1": {
+      "src": "/assets-built/world/upgrade_meadow_q1.png",
+      "w": 295,
+      "h": 323
+    },
+    "upgrade_meadow_q2": {
+      "src": "/assets-built/world/upgrade_meadow_q2.png",
+      "w": 298,
+      "h": 330
+    },
+    "upgrade_meadow_q3": {
+      "src": "/assets-built/world/upgrade_meadow_q3.png",
+      "w": 316,
+      "h": 330
+    },
+    "upgrade_meadow_q4": {
+      "src": "/assets-built/world/upgrade_meadow_q4.png",
+      "w": 313,
+      "h": 341
+    },
+    "upgrade_meadow_5": {
+      "src": "/assets-built/world/upgrade_meadow_5.png",
+      "w": 310,
+      "h": 341
+    },
+    "upgrade_meadow_6": {
+      "src": "/assets-built/world/upgrade_meadow_6.png",
+      "w": 321,
+      "h": 311
+    },
+    "upgrade_meadow_7": {
+      "src": "/assets-built/world/upgrade_meadow_7.png",
+      "w": 332,
+      "h": 328
+    },
+    "upgrade_meadow_8": {
+      "src": "/assets-built/world/upgrade_meadow_8.png",
+      "w": 338,
+      "h": 327
+    },
+    "upgrade_meadow_harbor": {
+      "src": "/assets-built/world/upgrade_meadow_harbor.png",
+      "w": 341,
+      "h": 323
+    },
+    "upgrade_lagoon_q1": {
+      "src": "/assets-built/world/upgrade_lagoon_q1.png",
+      "w": 315,
+      "h": 323
+    },
+    "upgrade_lagoon_q2": {
+      "src": "/assets-built/world/upgrade_lagoon_q2.png",
+      "w": 277,
+      "h": 310
+    },
+    "upgrade_lagoon_q3": {
+      "src": "/assets-built/world/upgrade_lagoon_q3.png",
+      "w": 321,
+      "h": 323
+    },
+    "upgrade_lagoon_q4": {
+      "src": "/assets-built/world/upgrade_lagoon_q4.png",
+      "w": 317,
+      "h": 341
+    },
+    "upgrade_lagoon_5": {
+      "src": "/assets-built/world/upgrade_lagoon_5.png",
+      "w": 335,
+      "h": 341
+    },
+    "upgrade_lagoon_6": {
+      "src": "/assets-built/world/upgrade_lagoon_6.png",
+      "w": 327,
+      "h": 341
+    },
+    "upgrade_lagoon_7": {
+      "src": "/assets-built/world/upgrade_lagoon_7.png",
+      "w": 322,
+      "h": 322
+    },
+    "upgrade_lagoon_8": {
+      "src": "/assets-built/world/upgrade_lagoon_8.png",
+      "w": 328,
+      "h": 321
+    },
+    "upgrade_lagoon_harbor": {
+      "src": "/assets-built/world/upgrade_lagoon_harbor.png",
+      "w": 320,
+      "h": 325
+    },
+    "upgrade_snack_q1": {
+      "src": "/assets-built/world/upgrade_snack_q1.png",
+      "w": 323,
+      "h": 327
+    },
+    "upgrade_snack_q2": {
+      "src": "/assets-built/world/upgrade_snack_q2.png",
+      "w": 291,
+      "h": 324
+    },
+    "upgrade_snack_q3": {
+      "src": "/assets-built/world/upgrade_snack_q3.png",
+      "w": 307,
+      "h": 313
+    },
+    "upgrade_snack_q4": {
+      "src": "/assets-built/world/upgrade_snack_q4.png",
+      "w": 316,
+      "h": 341
+    },
+    "upgrade_snack_5": {
+      "src": "/assets-built/world/upgrade_snack_5.png",
+      "w": 301,
+      "h": 341
+    },
+    "upgrade_snack_6": {
+      "src": "/assets-built/world/upgrade_snack_6.png",
+      "w": 320,
+      "h": 313
+    },
+    "upgrade_snack_7": {
+      "src": "/assets-built/world/upgrade_snack_7.png",
+      "w": 327,
+      "h": 325
+    },
+    "upgrade_snack_8": {
+      "src": "/assets-built/world/upgrade_snack_8.png",
+      "w": 341,
+      "h": 328
+    },
+    "upgrade_snack_harbor": {
+      "src": "/assets-built/world/upgrade_snack_harbor.png",
+      "w": 338,
+      "h": 325
+    },
+    "upgrade_retro_q1": {
+      "src": "/assets-built/world/upgrade_retro_q1.png",
+      "w": 297,
+      "h": 302
+    },
+    "upgrade_retro_q2": {
+      "src": "/assets-built/world/upgrade_retro_q2.png",
+      "w": 302,
+      "h": 309
+    },
+    "upgrade_retro_q3": {
+      "src": "/assets-built/world/upgrade_retro_q3.png",
+      "w": 302,
+      "h": 318
+    },
+    "upgrade_retro_q4": {
+      "src": "/assets-built/world/upgrade_retro_q4.png",
+      "w": 304,
+      "h": 335
+    },
+    "upgrade_retro_5": {
+      "src": "/assets-built/world/upgrade_retro_5.png",
+      "w": 317,
+      "h": 333
+    },
+    "upgrade_retro_6": {
+      "src": "/assets-built/world/upgrade_retro_6.png",
+      "w": 301,
+      "h": 309
+    },
+    "upgrade_retro_7": {
+      "src": "/assets-built/world/upgrade_retro_7.png",
+      "w": 329,
+      "h": 318
+    },
+    "upgrade_retro_8": {
+      "src": "/assets-built/world/upgrade_retro_8.png",
+      "w": 315,
+      "h": 318
+    },
+    "upgrade_retro_harbor": {
+      "src": "/assets-built/world/upgrade_retro_harbor.png",
+      "w": 316,
+      "h": 311
+    },
+    "upgrade_hollow_q1": {
+      "src": "/assets-built/world/upgrade_hollow_q1.png",
+      "w": 304,
+      "h": 323
+    },
+    "upgrade_hollow_q2": {
+      "src": "/assets-built/world/upgrade_hollow_q2.png",
+      "w": 298,
+      "h": 341
+    },
+    "upgrade_hollow_q3": {
+      "src": "/assets-built/world/upgrade_hollow_q3.png",
+      "w": 311,
+      "h": 333
+    },
+    "upgrade_hollow_q4": {
+      "src": "/assets-built/world/upgrade_hollow_q4.png",
+      "w": 304,
+      "h": 341
+    },
+    "upgrade_hollow_5": {
+      "src": "/assets-built/world/upgrade_hollow_5.png",
+      "w": 317,
+      "h": 341
+    },
+    "upgrade_hollow_6": {
+      "src": "/assets-built/world/upgrade_hollow_6.png",
+      "w": 317,
+      "h": 341
+    },
+    "upgrade_hollow_7": {
+      "src": "/assets-built/world/upgrade_hollow_7.png",
+      "w": 336,
+      "h": 321
+    },
+    "upgrade_hollow_8": {
+      "src": "/assets-built/world/upgrade_hollow_8.png",
+      "w": 328,
+      "h": 320
+    },
+    "upgrade_hollow_harbor": {
+      "src": "/assets-built/world/upgrade_hollow_harbor.png",
+      "w": 336,
+      "h": 325
+    },
+    "upgrade_meadow_t3_1": {
+      "src": "/assets-built/world/upgrade_meadow_t3_1.png",
+      "w": 329,
+      "h": 322
+    },
+    "upgrade_meadow_t3_2": {
+      "src": "/assets-built/world/upgrade_meadow_t3_2.png",
+      "w": 317,
+      "h": 333
+    },
+    "upgrade_meadow_t3_3": {
+      "src": "/assets-built/world/upgrade_meadow_t3_3.png",
+      "w": 312,
+      "h": 334
+    },
+    "upgrade_meadow_t3_4": {
+      "src": "/assets-built/world/upgrade_meadow_t3_4.png",
+      "w": 330,
+      "h": 341
+    },
+    "upgrade_meadow_t3_5": {
+      "src": "/assets-built/world/upgrade_meadow_t3_5.png",
+      "w": 341,
+      "h": 340
+    },
+    "upgrade_meadow_t3_6": {
+      "src": "/assets-built/world/upgrade_meadow_t3_6.png",
+      "w": 338,
+      "h": 341
+    },
+    "upgrade_meadow_t3_7": {
+      "src": "/assets-built/world/upgrade_meadow_t3_7.png",
+      "w": 331,
+      "h": 321
+    },
+    "upgrade_meadow_t3_8": {
+      "src": "/assets-built/world/upgrade_meadow_t3_8.png",
+      "w": 335,
+      "h": 319
+    },
+    "upgrade_meadow_t3_harbor": {
+      "src": "/assets-built/world/upgrade_meadow_t3_harbor.png",
+      "w": 323,
+      "h": 323
+    },
+    "upgrade_lagoon_t3_1": {
+      "src": "/assets-built/world/upgrade_lagoon_t3_1.png",
+      "w": 322,
+      "h": 329
+    },
+    "upgrade_lagoon_t3_2": {
+      "src": "/assets-built/world/upgrade_lagoon_t3_2.png",
+      "w": 335,
+      "h": 328
+    },
+    "upgrade_lagoon_t3_3": {
+      "src": "/assets-built/world/upgrade_lagoon_t3_3.png",
+      "w": 331,
+      "h": 317
+    },
+    "upgrade_lagoon_t3_4": {
+      "src": "/assets-built/world/upgrade_lagoon_t3_4.png",
+      "w": 330,
+      "h": 341
+    },
+    "upgrade_lagoon_t3_5": {
+      "src": "/assets-built/world/upgrade_lagoon_t3_5.png",
+      "w": 322,
+      "h": 340
+    },
+    "upgrade_lagoon_t3_6": {
+      "src": "/assets-built/world/upgrade_lagoon_t3_6.png",
+      "w": 320,
+      "h": 340
+    },
+    "upgrade_lagoon_t3_7": {
+      "src": "/assets-built/world/upgrade_lagoon_t3_7.png",
+      "w": 321,
+      "h": 310
+    },
+    "upgrade_lagoon_t3_8": {
+      "src": "/assets-built/world/upgrade_lagoon_t3_8.png",
+      "w": 321,
+      "h": 307
+    },
+    "upgrade_lagoon_t3_harbor": {
+      "src": "/assets-built/world/upgrade_lagoon_t3_harbor.png",
+      "w": 331,
+      "h": 324
+    },
+    "upgrade_snack_t3_1": {
+      "src": "/assets-built/world/upgrade_snack_t3_1.png",
+      "w": 329,
+      "h": 331
+    },
+    "upgrade_snack_t3_2": {
+      "src": "/assets-built/world/upgrade_snack_t3_2.png",
+      "w": 318,
+      "h": 328
+    },
+    "upgrade_snack_t3_3": {
+      "src": "/assets-built/world/upgrade_snack_t3_3.png",
+      "w": 324,
+      "h": 332
+    },
+    "upgrade_snack_t3_4": {
+      "src": "/assets-built/world/upgrade_snack_t3_4.png",
+      "w": 332,
+      "h": 341
+    },
+    "upgrade_snack_t3_5": {
+      "src": "/assets-built/world/upgrade_snack_t3_5.png",
+      "w": 339,
+      "h": 327
+    },
+    "upgrade_snack_t3_6": {
+      "src": "/assets-built/world/upgrade_snack_t3_6.png",
+      "w": 334,
+      "h": 340
+    },
+    "upgrade_snack_t3_7": {
+      "src": "/assets-built/world/upgrade_snack_t3_7.png",
+      "w": 331,
+      "h": 322
+    },
+    "upgrade_snack_t3_8": {
+      "src": "/assets-built/world/upgrade_snack_t3_8.png",
+      "w": 336,
+      "h": 322
+    },
+    "upgrade_snack_t3_harbor": {
+      "src": "/assets-built/world/upgrade_snack_t3_harbor.png",
+      "w": 333,
+      "h": 341
+    },
+    "upgrade_retro_t3_1": {
+      "src": "/assets-built/world/upgrade_retro_t3_1.png",
+      "w": 320,
+      "h": 331
+    },
+    "upgrade_retro_t3_2": {
+      "src": "/assets-built/world/upgrade_retro_t3_2.png",
+      "w": 298,
+      "h": 321
+    },
+    "upgrade_retro_t3_3": {
+      "src": "/assets-built/world/upgrade_retro_t3_3.png",
+      "w": 323,
+      "h": 314
+    },
+    "upgrade_retro_t3_4": {
+      "src": "/assets-built/world/upgrade_retro_t3_4.png",
+      "w": 320,
+      "h": 341
+    },
+    "upgrade_retro_t3_5": {
+      "src": "/assets-built/world/upgrade_retro_t3_5.png",
+      "w": 302,
+      "h": 340
+    },
+    "upgrade_retro_t3_6": {
+      "src": "/assets-built/world/upgrade_retro_t3_6.png",
+      "w": 320,
+      "h": 330
+    },
+    "upgrade_retro_t3_7": {
+      "src": "/assets-built/world/upgrade_retro_t3_7.png",
+      "w": 327,
+      "h": 301
+    },
+    "upgrade_retro_t3_8": {
+      "src": "/assets-built/world/upgrade_retro_t3_8.png",
+      "w": 324,
+      "h": 284
+    },
+    "upgrade_retro_t3_harbor": {
+      "src": "/assets-built/world/upgrade_retro_t3_harbor.png",
+      "w": 326,
+      "h": 318
+    },
+    "upgrade_hollow_t3_1": {
+      "src": "/assets-built/world/upgrade_hollow_t3_1.png",
+      "w": 314,
+      "h": 328
+    },
+    "upgrade_hollow_t3_2": {
+      "src": "/assets-built/world/upgrade_hollow_t3_2.png",
+      "w": 316,
+      "h": 330
+    },
+    "upgrade_hollow_t3_3": {
+      "src": "/assets-built/world/upgrade_hollow_t3_3.png",
+      "w": 326,
+      "h": 326
+    },
+    "upgrade_hollow_t3_4": {
+      "src": "/assets-built/world/upgrade_hollow_t3_4.png",
+      "w": 305,
+      "h": 340
+    },
+    "upgrade_hollow_t3_5": {
+      "src": "/assets-built/world/upgrade_hollow_t3_5.png",
+      "w": 338,
+      "h": 339
+    },
+    "upgrade_hollow_t3_6": {
+      "src": "/assets-built/world/upgrade_hollow_t3_6.png",
+      "w": 333,
+      "h": 341
+    },
+    "upgrade_hollow_t3_7": {
+      "src": "/assets-built/world/upgrade_hollow_t3_7.png",
+      "w": 330,
+      "h": 327
+    },
+    "upgrade_hollow_t3_8": {
+      "src": "/assets-built/world/upgrade_hollow_t3_8.png",
+      "w": 341,
+      "h": 322
+    },
+    "upgrade_hollow_t3_harbor": {
+      "src": "/assets-built/world/upgrade_hollow_t3_harbor.png",
+      "w": 337,
+      "h": 341
+    },
+    "crop_radish_1": {
+      "src": "/assets-built/world/crop_radish_1.png",
+      "w": 107,
+      "h": 103
+    },
+    "crop_radish_2": {
+      "src": "/assets-built/world/crop_radish_2.png",
+      "w": 221,
+      "h": 230
+    },
+    "crop_radish_3": {
+      "src": "/assets-built/world/crop_radish_3.png",
+      "w": 225,
+      "h": 295
+    },
+    "crop_corn_1": {
+      "src": "/assets-built/world/crop_corn_1.png",
+      "w": 102,
+      "h": 120
+    },
+    "crop_corn_2": {
+      "src": "/assets-built/world/crop_corn_2.png",
+      "w": 197,
+      "h": 304
+    },
+    "crop_corn_3": {
+      "src": "/assets-built/world/crop_corn_3.png",
+      "w": 204,
+      "h": 271
+    },
+    "crop_pumpkin_1": {
+      "src": "/assets-built/world/crop_pumpkin_1.png",
+      "w": 159,
+      "h": 120
+    },
+    "crop_pumpkin_2": {
+      "src": "/assets-built/world/crop_pumpkin_2.png",
+      "w": 295,
+      "h": 226
+    },
+    "crop_pumpkin_3": {
+      "src": "/assets-built/world/crop_pumpkin_3.png",
+      "w": 250,
+      "h": 254
+    },
+    "crop_pineapple_1": {
+      "src": "/assets-built/world/crop_pineapple_1.png",
+      "w": 193,
+      "h": 164
+    },
+    "crop_pineapple_2": {
+      "src": "/assets-built/world/crop_pineapple_2.png",
+      "w": 264,
+      "h": 273
+    },
+    "crop_pineapple_3": {
+      "src": "/assets-built/world/crop_pineapple_3.png",
+      "w": 293,
+      "h": 309
+    },
+    "crop_strawberry_1": {
+      "src": "/assets-built/world/crop_strawberry_1.png",
+      "w": 139,
+      "h": 127
+    },
+    "crop_strawberry_2": {
+      "src": "/assets-built/world/crop_strawberry_2.png",
+      "w": 267,
+      "h": 248
+    },
+    "crop_strawberry_3": {
+      "src": "/assets-built/world/crop_strawberry_3.png",
+      "w": 300,
+      "h": 306
+    },
+    "crop_melon_1": {
+      "src": "/assets-built/world/crop_melon_1.png",
+      "w": 189,
+      "h": 157
+    },
+    "crop_melon_2": {
+      "src": "/assets-built/world/crop_melon_2.png",
+      "w": 333,
+      "h": 262
+    },
+    "crop_melon_3": {
+      "src": "/assets-built/world/crop_melon_3.png",
+      "w": 323,
+      "h": 295
+    },
+    "crop_starfruit_1": {
+      "src": "/assets-built/world/crop_starfruit_1.png",
+      "w": 147,
+      "h": 140
+    },
+    "crop_starfruit_2": {
+      "src": "/assets-built/world/crop_starfruit_2.png",
+      "w": 230,
+      "h": 305
+    },
+    "crop_starfruit_3": {
+      "src": "/assets-built/world/crop_starfruit_3.png",
+      "w": 292,
+      "h": 310
+    },
+    "crop_moonberry_1": {
+      "src": "/assets-built/world/crop_moonberry_1.png",
+      "w": 156,
+      "h": 124
+    },
+    "crop_moonberry_2": {
+      "src": "/assets-built/world/crop_moonberry_2.png",
+      "w": 318,
+      "h": 341
+    },
+    "crop_moonberry_3": {
+      "src": "/assets-built/world/crop_moonberry_3.png",
+      "w": 316,
+      "h": 337
+    },
+    "crop_dragonfruit_1": {
+      "src": "/assets-built/world/crop_dragonfruit_1.png",
+      "w": 146,
+      "h": 173
+    },
+    "crop_dragonfruit_2": {
+      "src": "/assets-built/world/crop_dragonfruit_2.png",
+      "w": 311,
+      "h": 294
+    },
+    "crop_dragonfruit_3": {
+      "src": "/assets-built/world/crop_dragonfruit_3.png",
+      "w": 321,
+      "h": 302
+    },
+    "prop_wash_tub": {
+      "src": "/assets-built/world/prop_wash_tub.png",
+      "w": 246,
+      "h": 268
+    },
+    "prop_straw_nest": {
+      "src": "/assets-built/world/prop_straw_nest.png",
+      "w": 291,
+      "h": 215
+    },
+    "prop_barn": {
+      "src": "/assets-built/world/prop_barn.png",
+      "w": 278,
+      "h": 289
+    },
+    "prop_wood_tree": {
+      "src": "/assets-built/world/prop_wood_tree.png",
+      "w": 310,
+      "h": 319
+    },
+    "prop_berry_bush": {
+      "src": "/assets-built/world/prop_berry_bush.png",
+      "w": 258,
+      "h": 241
+    },
+    "prop_soil_dry": {
+      "src": "/assets-built/world/prop_soil_dry.png",
+      "w": 328,
+      "h": 220
+    },
+    "prop_soil_watered": {
+      "src": "/assets-built/world/prop_soil_watered.png",
+      "w": 326,
+      "h": 220
+    },
+    "prop_signpost": {
+      "src": "/assets-built/world/prop_signpost.png",
+      "w": 273,
+      "h": 266
+    },
+    "prop_egg_nest": {
+      "src": "/assets-built/world/prop_egg_nest.png",
+      "w": 245,
+      "h": 239
+    },
+    "prop_t2_stone_bath": {
+      "src": "/assets-built/world/prop_t2_stone_bath.png",
+      "w": 320,
+      "h": 304
+    },
+    "prop_t2_velvet_bed": {
+      "src": "/assets-built/world/prop_t2_velvet_bed.png",
+      "w": 280,
+      "h": 207
+    },
+    "prop_t2_stone_barn": {
+      "src": "/assets-built/world/prop_t2_stone_barn.png",
+      "w": 315,
+      "h": 326
+    },
+    "prop_t2_cherry_tree": {
+      "src": "/assets-built/world/prop_t2_cherry_tree.png",
+      "w": 319,
+      "h": 316
+    },
+    "prop_t2_honey_bush": {
+      "src": "/assets-built/world/prop_t2_honey_bush.png",
+      "w": 315,
+      "h": 322
+    },
+    "prop_t2_raised_dry": {
+      "src": "/assets-built/world/prop_t2_raised_dry.png",
+      "w": 325,
+      "h": 284
+    },
+    "prop_t2_raised_watered": {
+      "src": "/assets-built/world/prop_t2_raised_watered.png",
+      "w": 316,
+      "h": 294
+    },
+    "prop_t2_lantern_sign": {
+      "src": "/assets-built/world/prop_t2_lantern_sign.png",
+      "w": 303,
+      "h": 311
+    },
+    "prop_t2_golden_egg": {
+      "src": "/assets-built/world/prop_t2_golden_egg.png",
+      "w": 279,
+      "h": 255
+    },
+    "prop_t3_marble_fountain": {
+      "src": "/assets-built/world/prop_t3_marble_fountain.png",
+      "w": 295,
+      "h": 295
+    },
+    "prop_t3_canopy_bed": {
+      "src": "/assets-built/world/prop_t3_canopy_bed.png",
+      "w": 296,
+      "h": 328
+    },
+    "prop_t3_guild_barn": {
+      "src": "/assets-built/world/prop_t3_guild_barn.png",
+      "w": 326,
+      "h": 332
+    },
+    "prop_t3_spirit_tree": {
+      "src": "/assets-built/world/prop_t3_spirit_tree.png",
+      "w": 327,
+      "h": 324
+    },
+    "prop_t3_crystal_bush": {
+      "src": "/assets-built/world/prop_t3_crystal_bush.png",
+      "w": 318,
+      "h": 302
+    },
+    "prop_t3_crystal_dry": {
+      "src": "/assets-built/world/prop_t3_crystal_dry.png",
+      "w": 336,
+      "h": 321
+    },
+    "prop_t3_crystal_watered": {
+      "src": "/assets-built/world/prop_t3_crystal_watered.png",
+      "w": 331,
+      "h": 286
+    },
+    "prop_t3_royal_sign": {
+      "src": "/assets-built/world/prop_t3_royal_sign.png",
+      "w": 275,
+      "h": 315
+    },
+    "prop_t3_dragon_egg": {
+      "src": "/assets-built/world/prop_t3_dragon_egg.png",
+      "w": 292,
+      "h": 271
+    },
+    "clutter_bench": {
+      "src": "/assets-built/world/clutter_bench.png",
+      "w": 253,
+      "h": 251
+    },
+    "clutter_campfire": {
+      "src": "/assets-built/world/clutter_campfire.png",
+      "w": 301,
+      "h": 210
+    },
+    "clutter_picnic": {
+      "src": "/assets-built/world/clutter_picnic.png",
+      "w": 318,
+      "h": 216
+    },
+    "clutter_fence": {
+      "src": "/assets-built/world/clutter_fence.png",
+      "w": 281,
+      "h": 273
+    },
+    "clutter_lantern": {
+      "src": "/assets-built/world/clutter_lantern.png",
+      "w": 111,
+      "h": 312
+    },
+    "clutter_flowers": {
+      "src": "/assets-built/world/clutter_flowers.png",
+      "w": 263,
+      "h": 207
+    },
+    "clutter_mailbox": {
+      "src": "/assets-built/world/clutter_mailbox.png",
+      "w": 151,
+      "h": 257
+    },
+    "clutter_gift_rowboat": {
+      "src": "/assets-built/world/clutter_gift_rowboat.png",
+      "w": 294,
+      "h": 203
+    },
+    "clutter_leaves": {
+      "src": "/assets-built/world/clutter_leaves.png",
+      "w": 259,
+      "h": 176
+    },
+    "clutter_t2_oak_bench": {
+      "src": "/assets-built/world/clutter_t2_oak_bench.png",
+      "w": 293,
+      "h": 309
+    },
+    "clutter_t2_stone_bonfire": {
+      "src": "/assets-built/world/clutter_t2_stone_bonfire.png",
+      "w": 324,
+      "h": 308
+    },
+    "clutter_t2_picnic": {
+      "src": "/assets-built/world/clutter_t2_picnic.png",
+      "w": 331,
+      "h": 253
+    },
+    "clutter_t2_flower_fence": {
+      "src": "/assets-built/world/clutter_t2_flower_fence.png",
+      "w": 300,
+      "h": 324
+    },
+    "clutter_t2_iron_lamp": {
+      "src": "/assets-built/world/clutter_t2_iron_lamp.png",
+      "w": 180,
+      "h": 341
+    },
+    "clutter_t2_flowerbed": {
+      "src": "/assets-built/world/clutter_t2_flowerbed.png",
+      "w": 295,
+      "h": 259
+    },
+    "clutter_t2_birdhouse": {
+      "src": "/assets-built/world/clutter_t2_birdhouse.png",
+      "w": 159,
+      "h": 305
+    },
+    "clutter_t2_sailboat": {
+      "src": "/assets-built/world/clutter_t2_sailboat.png",
+      "w": 305,
+      "h": 307
+    },
+    "clutter_t2_glow_leaves": {
+      "src": "/assets-built/world/clutter_t2_glow_leaves.png",
+      "w": 298,
+      "h": 229
+    },
+    "clutter_t3_marble_bench": {
+      "src": "/assets-built/world/clutter_t3_marble_bench.png",
+      "w": 299,
+      "h": 309
+    },
+    "clutter_t3_brazier": {
+      "src": "/assets-built/world/clutter_t3_brazier.png",
+      "w": 302,
+      "h": 314
+    },
+    "clutter_t3_pavilion": {
+      "src": "/assets-built/world/clutter_t3_pavilion.png",
+      "w": 331,
+      "h": 261
+    },
+    "clutter_t3_balustrade": {
+      "src": "/assets-built/world/clutter_t3_balustrade.png",
+      "w": 295,
+      "h": 341
+    },
+    "clutter_t3_crystal_lantern": {
+      "src": "/assets-built/world/clutter_t3_crystal_lantern.png",
+      "w": 122,
+      "h": 332
+    },
+    "clutter_t3_fairy_garden": {
+      "src": "/assets-built/world/clutter_t3_fairy_garden.png",
+      "w": 292,
+      "h": 255
+    },
+    "clutter_t3_owl_post": {
+      "src": "/assets-built/world/clutter_t3_owl_post.png",
+      "w": 143,
+      "h": 319
+    },
+    "clutter_t3_clipper": {
+      "src": "/assets-built/world/clutter_t3_clipper.png",
+      "w": 339,
+      "h": 279
+    },
+    "clutter_t3_star_leaves": {
+      "src": "/assets-built/world/clutter_t3_star_leaves.png",
+      "w": 303,
+      "h": 203
+    }
+  },
+  "rascals": [
+    {
+      "id": "armadillo",
+      "name": "Armadillo",
+      "icon": "/assets-built/rascals/armadillo/icon.png",
+      "atlas": "/assets-built/rascals/armadillo/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "axolotl",
+      "name": "Axolotl",
+      "icon": "/assets-built/rascals/axolotl/icon.png",
+      "atlas": "/assets-built/rascals/axolotl/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "baby-yeti",
+      "name": "Baby Yeti",
+      "icon": "/assets-built/rascals/baby-yeti/icon.png",
+      "atlas": "/assets-built/rascals/baby-yeti/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "black-cat",
+      "name": "Black Cat",
+      "icon": "/assets-built/rascals/black-cat/icon.png",
+      "atlas": "/assets-built/rascals/black-cat/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "boba-cup",
+      "name": "Boba Cup",
+      "icon": "/assets-built/rascals/boba-cup/icon.png",
+      "atlas": "/assets-built/rascals/boba-cup/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "boombox-stereo",
+      "name": "Boombox Stereo",
+      "icon": "/assets-built/rascals/boombox-stereo/icon.png",
+      "atlas": "/assets-built/rascals/boombox-stereo/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "brontosaurus",
+      "name": "Brontosaurus",
+      "icon": "/assets-built/rascals/brontosaurus/icon.png",
+      "atlas": "/assets-built/rascals/brontosaurus/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "bunny",
+      "name": "Bunny",
+      "icon": "/assets-built/rascals/bunny/icon.png",
+      "atlas": "/assets-built/rascals/bunny/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "cactus-sheriff",
+      "name": "Cactus Sheriff",
+      "icon": "/assets-built/rascals/cactus-sheriff/icon.png",
+      "atlas": "/assets-built/rascals/cactus-sheriff/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "capybara",
+      "name": "Capybara",
+      "icon": "/assets-built/rascals/capybara/icon.png",
+      "atlas": "/assets-built/rascals/capybara/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "champ-glove",
+      "name": "Champ Glove",
+      "icon": "/assets-built/rascals/champ-glove/icon.png",
+      "atlas": "/assets-built/rascals/champ-glove/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "chill-avocado",
+      "name": "Chill Avocado",
+      "icon": "/assets-built/rascals/chill-avocado/icon.png",
+      "atlas": "/assets-built/rascals/chill-avocado/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "cinnamon-snail",
+      "name": "Cinnamon Snail",
+      "icon": "/assets-built/rascals/cinnamon-snail/icon.png",
+      "atlas": null,
+      "frameSize": 160,
+      "poseCount": 0
+    },
+    {
+      "id": "cloud-puff",
+      "name": "Cloud Puff",
+      "icon": "/assets-built/rascals/cloud-puff/icon.png",
+      "atlas": "/assets-built/rascals/cloud-puff/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "coffee-mug",
+      "name": "Coffee Mug",
+      "icon": "/assets-built/rascals/coffee-mug/icon.png",
+      "atlas": "/assets-built/rascals/coffee-mug/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "crow",
+      "name": "Crow",
+      "icon": "/assets-built/rascals/crow/icon.png",
+      "atlas": "/assets-built/rascals/crow/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "crt-buddy",
+      "name": "Crt Buddy",
+      "icon": "/assets-built/rascals/crt-buddy/icon.png",
+      "atlas": "/assets-built/rascals/crt-buddy/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "crunchy-taco",
+      "name": "Crunchy Taco",
+      "icon": "/assets-built/rascals/crunchy-taco/icon.png",
+      "atlas": "/assets-built/rascals/crunchy-taco/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "cyber-mecha",
+      "name": "Cyber Mecha",
+      "icon": "/assets-built/rascals/cyber-mecha/icon.png",
+      "atlas": "/assets-built/rascals/cyber-mecha/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "dumpster-fire",
+      "name": "Dumpster Fire",
+      "icon": "/assets-built/rascals/dumpster-fire/icon.png",
+      "atlas": "/assets-built/rascals/dumpster-fire/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "ember-dragon",
+      "name": "Ember Dragon",
+      "icon": "/assets-built/rascals/ember-dragon/icon.png",
+      "atlas": "/assets-built/rascals/ember-dragon/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "fairy-terrarium",
+      "name": "Fairy Terrarium",
+      "icon": "/assets-built/rascals/fairy-terrarium/icon.png",
+      "atlas": "/assets-built/rascals/fairy-terrarium/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "flamingo-prima",
+      "name": "Flamingo Prima",
+      "icon": "/assets-built/rascals/flamingo-prima/icon.png",
+      "atlas": "/assets-built/rascals/flamingo-prima/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "frog",
+      "name": "Frog",
+      "icon": "/assets-built/rascals/frog/icon.png",
+      "atlas": "/assets-built/rascals/frog/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "garage-toolbox",
+      "name": "Garage Toolbox",
+      "icon": "/assets-built/rascals/garage-toolbox/icon.png",
+      "atlas": "/assets-built/rascals/garage-toolbox/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "ghost",
+      "name": "Ghost",
+      "icon": "/assets-built/rascals/ghost/icon.png",
+      "atlas": "/assets-built/rascals/ghost/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "gremlin",
+      "name": "Gremlin",
+      "icon": "/assets-built/rascals/gremlin/icon.png",
+      "atlas": "/assets-built/rascals/gremlin/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "grill-burger",
+      "name": "Grill Burger",
+      "icon": "/assets-built/rascals/grill-burger/icon.png",
+      "atlas": "/assets-built/rascals/grill-burger/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "grumpy-mandrake",
+      "name": "Grumpy Mandrake",
+      "icon": "/assets-built/rascals/grumpy-mandrake/icon.png",
+      "atlas": "/assets-built/rascals/grumpy-mandrake/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "gumball-dispenser",
+      "name": "Gumball Dispenser",
+      "icon": "/assets-built/rascals/gumball-dispenser/icon.png",
+      "atlas": "/assets-built/rascals/gumball-dispenser/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "heavy-dumbbell",
+      "name": "Heavy Dumbbell",
+      "icon": "/assets-built/rascals/heavy-dumbbell/icon.png",
+      "atlas": "/assets-built/rascals/heavy-dumbbell/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "highland-cow",
+      "name": "Highland Cow",
+      "icon": "/assets-built/rascals/highland-cow/icon.png",
+      "atlas": "/assets-built/rascals/highland-cow/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "jellyfish",
+      "name": "Jellyfish",
+      "icon": "/assets-built/rascals/jellyfish/icon.png",
+      "atlas": "/assets-built/rascals/jellyfish/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "koi",
+      "name": "Koi",
+      "icon": "/assets-built/rascals/koi/icon.png",
+      "atlas": "/assets-built/rascals/koi/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "lagging-wifi",
+      "name": "Lagging Wifi",
+      "icon": "/assets-built/rascals/lagging-wifi/icon.png",
+      "atlas": "/assets-built/rascals/lagging-wifi/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "lava-lamp",
+      "name": "Lava Lamp",
+      "icon": "/assets-built/rascals/lava-lamp/icon.png",
+      "atlas": "/assets-built/rascals/lava-lamp/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "lofi-hedgehog",
+      "name": "Lofi Hedgehog",
+      "icon": "/assets-built/rascals/lofi-hedgehog/icon.png",
+      "atlas": "/assets-built/rascals/lofi-hedgehog/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "magma-golem",
+      "name": "Magma Golem",
+      "icon": "/assets-built/rascals/magma-golem/icon.png",
+      "atlas": "/assets-built/rascals/magma-golem/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "mechanical-keycap",
+      "name": "Mechanical Keycap",
+      "icon": "/assets-built/rascals/mechanical-keycap/icon.png",
+      "atlas": "/assets-built/rascals/mechanical-keycap/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "mimic-chest",
+      "name": "Mimic Chest",
+      "icon": "/assets-built/rascals/mimic-chest/icon.png",
+      "atlas": "/assets-built/rascals/mimic-chest/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "mini-arcade",
+      "name": "Mini Arcade",
+      "icon": "/assets-built/rascals/mini-arcade/icon.png",
+      "atlas": "/assets-built/rascals/mini-arcade/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "mixtape-cassette",
+      "name": "Mixtape Cassette",
+      "icon": "/assets-built/rascals/mixtape-cassette/icon.png",
+      "atlas": "/assets-built/rascals/mixtape-cassette/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "mochi",
+      "name": "Mochi",
+      "icon": "/assets-built/rascals/mochi/icon.png",
+      "atlas": "/assets-built/rascals/mochi/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "mushroom",
+      "name": "Mushroom",
+      "icon": "/assets-built/rascals/mushroom/icon.png",
+      "atlas": "/assets-built/rascals/mushroom/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "nitro-cold-brew",
+      "name": "Nitro Cold Brew",
+      "icon": "/assets-built/rascals/nitro-cold-brew/icon.png",
+      "atlas": "/assets-built/rascals/nitro-cold-brew/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "office-duck",
+      "name": "Office Duck",
+      "icon": "/assets-built/rascals/office-duck/icon.png",
+      "atlas": "/assets-built/rascals/office-duck/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "onigiri",
+      "name": "Onigiri",
+      "icon": "/assets-built/rascals/onigiri/icon.png",
+      "atlas": "/assets-built/rascals/onigiri/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "origami-crane",
+      "name": "Origami Crane",
+      "icon": "/assets-built/rascals/origami-crane/icon.png",
+      "atlas": "/assets-built/rascals/origami-crane/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "otter",
+      "name": "Otter",
+      "icon": "/assets-built/rascals/otter/icon.png",
+      "atlas": "/assets-built/rascals/otter/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "pebble",
+      "name": "Pebble",
+      "icon": "/assets-built/rascals/pebble/icon.png",
+      "atlas": "/assets-built/rascals/pebble/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "penguin",
+      "name": "Penguin",
+      "icon": "/assets-built/rascals/penguin/icon.png",
+      "atlas": "/assets-built/rascals/penguin/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "pepperoni-pizza",
+      "name": "Pepperoni Pizza",
+      "icon": "/assets-built/rascals/pepperoni-pizza/icon.png",
+      "atlas": "/assets-built/rascals/pepperoni-pizza/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "pocket-gargoyle",
+      "name": "Pocket Gargoyle",
+      "icon": "/assets-built/rascals/pocket-gargoyle/icon.png",
+      "atlas": "/assets-built/rascals/pocket-gargoyle/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "pocket-kaiju",
+      "name": "Pocket Kaiju",
+      "icon": "/assets-built/rascals/pocket-kaiju/icon.png",
+      "atlas": "/assets-built/rascals/pocket-kaiju/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "pocket-ufo",
+      "name": "Pocket Ufo",
+      "icon": "/assets-built/rascals/pocket-ufo/icon.png",
+      "atlas": "/assets-built/rascals/pocket-ufo/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "popup-toaster",
+      "name": "Popup Toaster",
+      "icon": "/assets-built/rascals/popup-toaster/icon.png",
+      "atlas": "/assets-built/rascals/popup-toaster/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "possum",
+      "name": "Possum",
+      "icon": "/assets-built/rascals/possum/icon.png",
+      "atlas": "/assets-built/rascals/possum/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "potato",
+      "name": "Potato",
+      "icon": "/assets-built/rascals/potato/icon.png",
+      "atlas": "/assets-built/rascals/potato/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "protein-shaker",
+      "name": "Protein Shaker",
+      "icon": "/assets-built/rascals/protein-shaker/icon.png",
+      "atlas": "/assets-built/rascals/protein-shaker/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "punk-pineapple",
+      "name": "Punk Pineapple",
+      "icon": "/assets-built/rascals/punk-pineapple/icon.png",
+      "atlas": "/assets-built/rascals/punk-pineapple/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "raccoon",
+      "name": "Raccoon",
+      "icon": "/assets-built/rascals/raccoon/icon.png",
+      "atlas": "/assets-built/rascals/raccoon/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "rainfrog",
+      "name": "Rainfrog",
+      "icon": "/assets-built/rascals/rainfrog/icon.png",
+      "atlas": "/assets-built/rascals/rainfrog/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "recon-pigeon",
+      "name": "Recon Pigeon",
+      "icon": "/assets-built/rascals/recon-pigeon/icon.png",
+      "atlas": "/assets-built/rascals/recon-pigeon/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "red-panda",
+      "name": "Red Panda",
+      "icon": "/assets-built/rascals/red-panda/icon.png",
+      "atlas": "/assets-built/rascals/red-panda/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "retro-cartridge",
+      "name": "Retro Cartridge",
+      "icon": "/assets-built/rascals/retro-cartridge/icon.png",
+      "atlas": "/assets-built/rascals/retro-cartridge/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "rgb-gaming-pc",
+      "name": "Rgb Gaming Pc",
+      "icon": "/assets-built/rascals/rgb-gaming-pc/icon.png",
+      "atlas": "/assets-built/rascals/rgb-gaming-pc/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "ronin-honey-badger",
+      "name": "Ronin Honey Badger",
+      "icon": "/assets-built/rascals/ronin-honey-badger/icon.png",
+      "atlas": "/assets-built/rascals/ronin-honey-badger/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "shiba",
+      "name": "Shiba",
+      "icon": "/assets-built/rascals/shiba/icon.png",
+      "atlas": "/assets-built/rascals/shiba/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "skate-bulldog",
+      "name": "Skate Bulldog",
+      "icon": "/assets-built/rascals/skate-bulldog/icon.png",
+      "atlas": "/assets-built/rascals/skate-bulldog/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "skeleton-gamer",
+      "name": "Skeleton Gamer",
+      "icon": "/assets-built/rascals/skeleton-gamer/icon.png",
+      "atlas": "/assets-built/rascals/skeleton-gamer/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "spicy-ramen",
+      "name": "Spicy Ramen",
+      "icon": "/assets-built/rascals/spicy-ramen/icon.png",
+      "atlas": "/assets-built/rascals/spicy-ramen/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "sprout-pot",
+      "name": "Sprout Pot",
+      "icon": "/assets-built/rascals/sprout-pot/icon.png",
+      "atlas": "/assets-built/rascals/sprout-pot/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "teapot",
+      "name": "Teapot",
+      "icon": "/assets-built/rascals/teapot/icon.png",
+      "atlas": "/assets-built/rascals/teapot/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "tin-golem",
+      "name": "Tin Golem",
+      "icon": "/assets-built/rascals/tin-golem/icon.png",
+      "atlas": "/assets-built/rascals/tin-golem/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "toast",
+      "name": "Toast",
+      "icon": "/assets-built/rascals/toast/icon.png",
+      "atlas": "/assets-built/rascals/toast/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "traffic-cone",
+      "name": "Traffic Cone",
+      "icon": "/assets-built/rascals/traffic-cone/icon.png",
+      "atlas": "/assets-built/rascals/traffic-cone/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "trex",
+      "name": "Trex",
+      "icon": "/assets-built/rascals/trex/icon.png",
+      "atlas": "/assets-built/rascals/trex/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "triceratops",
+      "name": "Triceratops",
+      "icon": "/assets-built/rascals/triceratops/icon.png",
+      "atlas": "/assets-built/rascals/triceratops/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "turbo-tire",
+      "name": "Turbo Tire",
+      "icon": "/assets-built/rascals/turbo-tire/icon.png",
+      "atlas": "/assets-built/rascals/turbo-tire/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "viking-dwarf",
+      "name": "Viking Dwarf",
+      "icon": "/assets-built/rascals/viking-dwarf/icon.png",
+      "atlas": "/assets-built/rascals/viking-dwarf/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    },
+    {
+      "id": "windup-bot",
+      "name": "Windup Bot",
+      "icon": "/assets-built/rascals/windup-bot/icon.png",
+      "atlas": "/assets-built/rascals/windup-bot/atlas.png",
+      "frameSize": 160,
+      "poseCount": 27
+    }
+  ],
+  "poseNames": [
+    "water",
+    "dig",
+    "harvest",
+    "chef",
+    "sweep",
+    "carry_logs",
+    "wash_tub",
+    "sleep",
+    "yawn",
+    "walk",
+    "hop",
+    "dash",
+    "trip",
+    "turn",
+    "idle",
+    "sit",
+    "look",
+    "stretch",
+    "wave",
+    "heart_eyes",
+    "eat",
+    "shocked",
+    "grumpy",
+    "crown",
+    "cheer",
+    "blush",
+    "laugh"
+  ],
+  "counts": {
+    "lands": 5,
+    "backdrops": 10,
+    "worldSprites": 216,
+    "rascals": 81,
+    "rascalsWithAtlas": 80
+  }
+}
