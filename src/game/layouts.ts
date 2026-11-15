@@ -271,6 +271,9 @@ export function buildIslandEntities(
   return entities;
 }
 
+/** FarmVille-style isometric tabletop flatten (islandScaleY / islandScaleX). */
+export const ISO_Y = 0.78;
+
 export function landToScreen(
   nx: number,
   ny: number,

@@ -4,6 +4,7 @@ import type { IslandId, Vec2 } from "./types";
  * Isometric grass-plateau diamonds per island (normalized land UVs),
  * inset inside the cliff rim so feet never sit in mid-air.
  * Vertices ordered clockwise: N → E → S → W (and optional mid-edge insets).
+ * UVs map through the engine's flattened landH (texH * ISO_Y = 0.78).
  */
 const ISLAND_DIAMONDS: Record<IslandId, Vec2[]> = {
   meadow: [

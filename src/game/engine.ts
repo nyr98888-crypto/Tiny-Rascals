@@ -1,6 +1,6 @@
 import manifest from "@/data/assetManifest.json";
 import { CozyAudio } from "./audio";
-import { buildIslandEntities, landToScreen } from "./layouts";
+import { buildIslandEntities, landToScreen, ISO_Y } from "./layouts";
 import { Pose, poseFromVelocity } from "./poses";
 import { loadSave, writeSave, canAfford, spend, UPGRADE_COSTS, NEXT_ISLAND } from "./save";
 import { TextureManager } from "./textures";
@@ -75,8 +75,12 @@ export class GameEngine {
   /** Smoothed 0..1 night amount for sky cross-fade + lighting. */
   nightBlend = 0;
 
+  /** Land texture pixel size (pre-isometric flatten). */
+  landTexW = 2048;
+  landTexH = 868;
+  /** Display size after ISO_Y flatten (islandScaleY = islandScaleX * 0.78). */
   landW = 2048;
-  landH = 868;
+  landH = 868 * ISO_Y;
   landX = 0;
   landY = 0;
 
@@ -222,8 +226,10 @@ export class GameEngine {
     }
     await this.textures.loadMany(srcs);
     this.textures.disposeExcept(keep);
+    this.landTexW = land.w;
+    this.landTexH = land.h;
     this.landW = land.w;
-    this.landH = land.h;
+    this.landH = land.h * ISO_Y;
     this.recomputeZoomLimits();
   }
 
@@ -332,32 +338,65 @@ export class GameEngine {
   }
 
   /**
-   * Opaque island ≈ 78% of land texture width. Target ~84% of viewport for the
-   * visible island (~18% larger than the prior ~70% framing).
+   * Default framing: full island silhouette (cliffs, falls, dock) at ~67% of the
+   * shorter viewport axis, leaving sky breathing room on all sides.
    */
-  private viewTextureFill() {
-    return 0.84 / 0.78; // ≈ 1.077
+  private computeFitZoom() {
+    const w = Math.max(320, this.canvas.clientWidth || 1280);
+    const h = Math.max(240, this.canvas.clientHeight || 720);
+    const frac = 0.67;
+    const zoomW = (frac * w) / Math.max(1, this.landW);
+    const zoomH = (frac * h) / Math.max(1, this.landH);
+    return Math.min(zoomW, zoomH);
   }
 
   private recomputeZoomLimits() {
-    const w = Math.max(320, this.canvas.clientWidth || 1280);
-    const fill = this.viewTextureFill();
-    const fit = (fill * w) / Math.max(1, this.landW);
-    this.minZoom = ((0.84 * 0.95) / 0.78 * w) / Math.max(1, this.landW);
-    this.maxZoom = this.minZoom * 2.4;
+    const fit = this.computeFitZoom();
+    this.minZoom = fit * 0.7;
+    this.maxZoom = fit * 2.2;
     this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || fit));
     this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || fit));
   }
 
   /** Apply default framing once land size is known (first load / island switch). */
   frameIsland() {
-    const w = Math.max(320, this.canvas.clientWidth || 1280);
     this.recomputeZoomLimits();
-    const fit = (this.viewTextureFill() * w) / Math.max(1, this.landW);
+    const fit = this.computeFitZoom();
     this.targetZoom = fit;
     this.zoom = fit;
     this.camX = 0;
     this.camY = this.landH * 0.02;
+    this.clampCamera();
+  }
+
+  /**
+   * Keep the floating island comfortably inside the viewport at the current zoom.
+   * When the view is larger than the island, lock to center; otherwise clamp so
+   * the land AABB cannot be dragged fully off-screen.
+   */
+  private clampCamera() {
+    const viewW = Math.max(320, this.canvas.clientWidth || 1280) / Math.max(0.01, this.zoom);
+    const viewH = Math.max(240, this.canvas.clientHeight || 720) / Math.max(0.01, this.zoom);
+    const slackX = Math.min(viewW * 0.12, this.landW * 0.08);
+    const slackY = Math.min(viewH * 0.12, this.landH * 0.08);
+    const cx = this.landX + this.landW / 2;
+    const cy = this.landY + this.landH / 2;
+
+    if (viewW >= this.landW - slackX * 2) {
+      this.camX = cx;
+    } else {
+      const minX = this.landX + viewW / 2 - slackX;
+      const maxX = this.landX + this.landW - viewW / 2 + slackX;
+      this.camX = Math.min(maxX, Math.max(minX, this.camX));
+    }
+
+    if (viewH >= this.landH - slackY * 2) {
+      this.camY = cy;
+    } else {
+      const minY = this.landY + viewH / 2 - slackY;
+      const maxY = this.landY + this.landH - viewH / 2 + slackY;
+      this.camY = Math.min(maxY, Math.max(minY, this.camY));
+    }
   }
 
   private clampOnIsland(x: number, y: number) {
@@ -480,6 +519,8 @@ export class GameEngine {
         const n = this.worldToNorm(world.x, world.y);
         this.grabOffset = { dx: n.x - ent.x, dy: n.y - ent.y };
         this.dragEntity = ent;
+        this.dragging = false; // decorate item drag never pans the camera
+        this.canvas.classList.remove("dragging");
         this.audio.pop();
         return;
       }
@@ -554,11 +595,12 @@ export class GameEngine {
       this.dragEntity.footY = n.y;
       return;
     }
-    if (this.dragging) {
+    if (this.dragging && !this.dragEntity && !this.heldRascal) {
       const dx = sx - this.dragLast.x;
       const dy = sy - this.dragLast.y;
       this.camX -= dx / this.zoom;
       this.camY -= dy / this.zoom;
+      this.clampCamera();
       this.dragLast = { x: sx, y: sy };
     }
   };
@@ -630,6 +672,7 @@ export class GameEngine {
       this.maxZoom,
       Math.max(this.minZoom, this.targetZoom * factor)
     );
+    this.clampCamera();
   };
 
   private findLandmark(kind: "barn" | "kitchen" | "clubhouse") {
@@ -798,8 +841,16 @@ export class GameEngine {
 
   private update(dt: number) {
     this.time += dt;
-    this.bob = Math.sin(this.time * 0.7) * 10;
+    this.bob = Math.sin(this.time * 0.7) * 8;
     this.zoom += (this.targetZoom - this.zoom) * Math.min(1, dt * 8);
+    // Keep min/max in sync with viewport size without resetting the player's zoom
+    {
+      const fit = this.computeFitZoom();
+      this.minZoom = fit * 0.7;
+      this.maxZoom = fit * 2.2;
+      this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom));
+      this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom));
+    }
 
     // Day/night cycle ~90s full day unless manual
     if (this.save.manualNight === null) {
@@ -811,6 +862,7 @@ export class GameEngine {
 
     this.landX = -this.landW / 2;
     this.landY = -this.landH / 2 + this.bob;
+    this.clampCamera();
 
     for (const r of this.rascals) this.updateRascal(r, dt);
 
@@ -1191,14 +1243,15 @@ export class GameEngine {
     }
 
     const stepX = (dx / dist) * speed * dt;
-    const stepY = (dy / dist) * speed * dt;
+    // Flatten vertical travel to match isometric tabletop plane (islandScaleY)
+    const stepY = (dy / dist) * speed * dt * ISO_Y;
     r.x += stepX;
     r.y += stepY;
     const feet = this.clampOnIsland(r.x, r.y);
     r.x = feet.x;
     r.y = feet.y;
     r.vx = stepX / Math.max(dt, 1e-4);
-    r.vy = stepY / Math.max(dt, 1e-4);
+    r.vy = (stepY / Math.max(dt, 1e-4));
 
     if (r.state === "HAUL") {
       r.pose = r.task === "tree" ? Pose.CARRY_LOGS : Pose.CARRY_BERRIES;
@@ -1226,6 +1279,33 @@ export class GameEngine {
     return this.nightBlend;
   }
 
+  /** Screen-space cover fill — sky never pans/zooms away to black void. */
+  private drawSkyCover(
+    dayImg: HTMLImageElement | null,
+    nightImg: HTMLImageElement | null,
+    night: number,
+    w: number,
+    h: number
+  ) {
+    const ctx = this.ctx;
+    const cover = (img: HTMLImageElement) => {
+      const scale = Math.max(w / img.width, h / img.height);
+      const dw = img.width * scale;
+      const dh = img.height * scale;
+      ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+    };
+    if (dayImg) cover(dayImg);
+    if (nightImg && night > 0) {
+      ctx.globalAlpha = night;
+      cover(nightImg);
+      ctx.globalAlpha = 1;
+    }
+    if (night > 0.05 && night < 0.95) {
+      ctx.fillStyle = `rgba(255, 170, 90, ${0.08 * Math.sin(night * Math.PI)})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+  }
+
   private draw() {
     const ctx = this.ctx;
     const w = this.canvas.clientWidth;
@@ -1238,30 +1318,15 @@ export class GameEngine {
     const landImg = this.textures.get(manifest.lands[island].src);
     const night = this.nightFactor();
 
+    // Sky locked to viewport (screen space) — 100% cover, zero black edges
+    this.drawSkyCover(dayImg, nightImg, night, w, h);
+
     ctx.save();
     ctx.translate(w / 2, h / 2);
     ctx.scale(this.zoom, this.zoom);
     ctx.translate(-this.camX, -this.camY);
 
-    // Sky (parallax slightly)
-    const skyScale = Math.max(w / this.zoom / 1584, h / this.zoom / 672) * 1.15;
-    const skyW = 1584 * skyScale;
-    const skyH = 672 * skyScale;
-    const skyX = -skyW / 2 + this.camX * 0.15;
-    const skyY = -skyH / 2 + this.camY * 0.08 - 40;
-    if (dayImg) ctx.drawImage(dayImg, skyX, skyY, skyW, skyH);
-    if (nightImg && night > 0) {
-      ctx.globalAlpha = night;
-      ctx.drawImage(nightImg, skyX, skyY, skyW, skyH);
-      ctx.globalAlpha = 1;
-    }
-
-    // Soft twilight tint
-    if (night > 0.05 && night < 0.95) {
-      ctx.fillStyle = `rgba(255, 170, 90, ${0.08 * Math.sin(night * Math.PI)})`;
-      ctx.fillRect(skyX, skyY, skyW, skyH);
-    }
-
+    // Island base flattened to FarmVille tabletop angle (scaleY = scaleX * 0.78)
     if (landImg) {
       ctx.drawImage(landImg, this.landX, this.landY, this.landW, this.landH);
     }
