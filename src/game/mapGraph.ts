@@ -6,24 +6,24 @@ export function pct(x: number, y: number): Vec2 {
 }
 
 /**
- * Shared 16:9 camera layout for Meadow + Lagoon (same road / plot graph).
- * Coordinates match the drawn dirt paths, bridge, and five tilled plots.
+ * Shared 16:9 camera layout aligned to `land-meadow` (Level 1).
+ * Coordinates match the drawn dirt paths, arched bridge, and five tilled plots.
  */
 export const SHARED_MAP = {
   /** Five plowed crop plots — Digging / Watering (Sheet 1). */
   plots: [
-    { id: "plot-tl", ...pct(25, 40), label: "Top-Left" },
-    { id: "plot-bl", ...pct(25, 75), label: "Bottom-Left" },
-    { id: "plot-ct", ...pct(55, 25), label: "Central-Top" },
-    { id: "plot-cr", ...pct(65, 55), label: "Central-Right" },
-    { id: "plot-br", ...pct(65, 85), label: "Bottom-Right" },
+    { id: "plot-tl", ...pct(28, 40), label: "Top-Left" },
+    { id: "plot-bl", ...pct(28, 76), label: "Bottom-Left" },
+    { id: "plot-ct", ...pct(53, 25), label: "Central-Top" },
+    { id: "plot-cr", ...pct(54, 48), label: "Central-Right" },
+    { id: "plot-br", ...pct(66, 86), label: "Bottom-Right" },
   ] as const,
 
-  /** Open grass/sand clearings for movable buildings & workstations. */
+  /** Open grass/sand clearings beside the crossroads for buildings/workstations. */
   clearings: [
-    { id: "clear-cross", ...pct(45, 45), r: 0.08, label: "Crossroads clearing" },
-    { id: "clear-south", ...pct(50, 70), r: 0.09, label: "South clearing" },
-    { id: "clear-east", ...pct(80, 65), r: 0.06, label: "East clearing" },
+    { id: "clear-cross", ...pct(52, 50), r: 0.09, label: "Crossroads clearing" },
+    { id: "clear-south", ...pct(45, 70), r: 0.09, label: "South clearing" },
+    { id: "clear-east", ...pct(85, 45), r: 0.06, label: "Right-bank clearing" },
   ] as const,
 
   /**
@@ -31,22 +31,22 @@ export const SHARED_MAP = {
    * Left portal → crossroads → bridge → right portal, plus plot/clearing branches.
    */
   nodes: {
-    portal_left: pct(0, 55),
-    crossroads: pct(40, 55),
+    portal_left: pct(0, 48),
+    crossroads: pct(45, 52),
     north_branch: pct(35, 20),
-    south_branch: pct(75, 90),
-    bridge_w: pct(63, 45),
-    bridge_e: pct(78, 35),
-    portal_right: pct(100, 15),
+    south_branch: pct(83, 100),
+    bridge_w: pct(63, 43),
+    bridge_e: pct(76, 34),
+    portal_right: pct(100, 12),
     // Spur nodes at each plot / clearing for path snaps
-    plot_tl: pct(25, 40),
-    plot_bl: pct(25, 75),
-    plot_ct: pct(55, 25),
-    plot_cr: pct(65, 55),
-    plot_br: pct(65, 85),
-    clear_cross: pct(45, 45),
-    clear_south: pct(50, 70),
-    clear_east: pct(80, 65),
+    plot_tl: pct(28, 40),
+    plot_bl: pct(28, 76),
+    plot_ct: pct(53, 25),
+    plot_cr: pct(54, 48),
+    plot_br: pct(66, 86),
+    clear_cross: pct(52, 50),
+    clear_south: pct(45, 70),
+    clear_east: pct(85, 45),
   } as const,
 } as const;
 

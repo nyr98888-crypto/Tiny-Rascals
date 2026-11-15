@@ -1,3 +1,4 @@
+import { SHARED_MAP } from "./mapGraph";
 import {
   ISLAND_ORDER,
   type GameSave,
@@ -8,6 +9,17 @@ import {
 } from "./types";
 
 const KEY = "tiny-rascals-save-v1";
+
+/** Level 1 Meadow spawn ring around the dirt crossroads. */
+function meadowSpawnPoint(k: number): Vec2 {
+  const hub = SHARED_MAP.nodes.crossroads;
+  const col = k % 3;
+  const row = Math.floor(k / 3);
+  return {
+    x: hub.x + (col - 1) * 0.04,
+    y: hub.y + row * 0.05,
+  };
+}
 
 function emptyLayouts(): Record<IslandId, Record<string, Vec2>> {
   return {
@@ -47,12 +59,14 @@ export function defaultSave(starterPets: string[]): GameSave {
     for (let k = 0; k < perIsland; k++) {
       const petId = picks[(ii * perIsland + k) % picks.length] ?? picks[0];
       if (!petId) continue;
-      const col = k % 3;
-      const row = Math.floor(k / 3);
+      const feet =
+        island === "meadow"
+          ? meadowSpawnPoint(k)
+          : { x: 0.32 + (k % 3) * 0.12, y: 0.48 + Math.floor(k / 3) * 0.1 };
       spawned[island].push({
         petId,
-        x: 0.32 + col * 0.12,
-        y: 0.48 + row * 0.1,
+        x: feet.x,
+        y: feet.y,
         xp: 0,
         level: 1,
       });
@@ -60,7 +74,7 @@ export function defaultSave(starterPets: string[]): GameSave {
   });
 
   return {
-    version: 6,
+    version: 7,
     activeIsland: "meadow",
     dayNight: 0.25,
     manualNight: null,
@@ -81,7 +95,7 @@ export function loadSave(starterPets: string[]): GameSave {
     const raw = localStorage.getItem(KEY);
     if (!raw) return defaultSave(starterPets);
     const parsed = JSON.parse(raw) as GameSave & { clutterOffsets?: Record<string, Vec2> };
-    if (![1, 2, 3, 4, 5, 6].includes(parsed.version)) return defaultSave(starterPets);
+    if (![1, 2, 3, 4, 5, 6, 7].includes(parsed.version)) return defaultSave(starterPets);
 
     if (!parsed.layoutOverrides) parsed.layoutOverrides = emptyLayouts();
     for (const id of ISLAND_ORDER) {
@@ -139,7 +153,36 @@ export function loadSave(starterPets: string[]): GameSave {
       }
       parsed.sandboxPreviewAll = true;
     }
-    parsed.version = 6;
+    // v6→v7: Level 1 is land-meadow — boot on Meadow, snap Meadow feet to crossroads
+    if (parsed.version < 7) {
+      parsed.activeIsland = "meadow";
+      parsed.islands.meadow.unlocked = true;
+      const list = parsed.spawned.meadow ?? [];
+      if (list.length === 0) {
+        const pool =
+          starterPets.length > 0
+            ? starterPets
+            : parsed.discovered.length > 0
+              ? parsed.discovered
+              : ["axolotl", "shiba", "frog"];
+        for (let k = 0; k < 3; k++) {
+          const petId = pool[k % pool.length];
+          const feet = meadowSpawnPoint(k);
+          list.push({ petId, x: feet.x, y: feet.y, xp: 0, level: 1 });
+          if (!parsed.discovered.includes(petId)) parsed.discovered.push(petId);
+        }
+      } else {
+        list.forEach((s, k) => {
+          const feet = meadowSpawnPoint(k);
+          s.x = feet.x;
+          s.y = feet.y;
+        });
+      }
+      parsed.spawned.meadow = list;
+    }
+    parsed.version = 7;
+    // Always treat Meadow as the Level 1 home world if somehow unset
+    if (!parsed.activeIsland) parsed.activeIsland = "meadow";
 
     applyOfflineIdle(parsed);
     return parsed;

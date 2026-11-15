@@ -2,9 +2,9 @@
   "generatedAt": "2026-11-15T21:29:45.635Z",
   "lands": {
     "meadow": {
-      "src": "/world/mado%20new.jpg",
-      "w": 2752,
-      "h": 1536
+      "src": "/world/land-meadow.jpg",
+      "w": 5504,
+      "h": 3072
     },
     "lagoon": {
       "src": "/world/land-lagoon.jpg",

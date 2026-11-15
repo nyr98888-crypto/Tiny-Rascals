@@ -255,10 +255,14 @@ export class GameEngine {
     }
     await this.textures.loadMany(srcs);
     this.textures.disposeExcept(keep);
-    this.landTexW = land.w;
-    this.landTexH = land.h;
-    this.landW = land.w;
-    this.landH = land.h * ISO_Y;
+    // Prefer native texture size so land-meadow fills the 16:9 viewport edge-to-edge
+    const landImg = this.textures.get(land.src);
+    const tw = landImg?.naturalWidth || land.w;
+    const th = landImg?.naturalHeight || land.h;
+    this.landTexW = tw;
+    this.landTexH = th;
+    this.landW = tw;
+    this.landH = th * ISO_Y;
     this.recomputeZoomLimits();
   }
 

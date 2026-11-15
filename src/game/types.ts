@@ -108,7 +108,7 @@ export interface IslandProgress {
 }
 
 export interface GameSave {
-  version: 1 | 2 | 3 | 4 | 5 | 6;
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   activeIsland: IslandId;
   dayNight: number;
   manualNight: boolean | null;
