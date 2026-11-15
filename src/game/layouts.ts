@@ -168,7 +168,7 @@ export function buildIslandEntities(
       spriteId: lm.spriteId,
       x: pos.x,
       y: pos.y,
-      scale: lm.scale,
+      scale: lm.scale * ENTITY_SCALE,
       footY: pos.y,
       movable: true,
       interact,
@@ -182,7 +182,7 @@ export function buildIslandEntities(
     spriteId: harborSprite(manifest, island, tiers.buildingTier),
     x: POS.dock.x,
     y: POS.dock.y,
-    scale: 0.48,
+    scale: 0.48 * ENTITY_SCALE,
     footY: POS.dock.y,
     movable: false,
   });
@@ -210,7 +210,7 @@ export function buildIslandEntities(
       spriteId: pickProp(manifest, tiers.propTier, p.slot),
       x: pos.x,
       y: pos.y,
-      scale: p.scale,
+      scale: p.scale * ENTITY_SCALE,
       footY: pos.y,
       movable: true,
       interact: p.interact,
@@ -227,7 +227,7 @@ export function buildIslandEntities(
       spriteId: pickCrop(manifest, tiers.cropTier, i),
       x: pos.x,
       y: pos.y,
-      scale: 0.28,
+      scale: 0.28 * ENTITY_SCALE,
       footY: pos.y,
       movable: true,
       interact: "soil",
@@ -261,7 +261,7 @@ export function buildIslandEntities(
       spriteId: pickClutter(manifest, tiers.clutterTier, c.slot),
       x: pos.x,
       y: pos.y,
-      scale: c.scale,
+      scale: c.scale * ENTITY_SCALE,
       footY: pos.y,
       movable: true,
       interact: c.interact,
@@ -272,7 +272,10 @@ export function buildIslandEntities(
 }
 
 /** FarmVille-style isometric tabletop flatten (islandScaleY / islandScaleX). */
-export const ISO_Y = 0.78;
+export const ISO_Y = 0.65;
+
+/** World props/buildings/crops drawn ~24% smaller relative to the wide island. */
+export const ENTITY_SCALE = 0.76;
 
 export function landToScreen(
   nx: number,

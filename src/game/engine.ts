@@ -78,7 +78,7 @@ export class GameEngine {
   /** Land texture pixel size (pre-isometric flatten). */
   landTexW = 2048;
   landTexH = 868;
-  /** Display size after ISO_Y flatten (islandScaleY = islandScaleX * 0.78). */
+  /** Display size after ISO_Y flatten (islandScaleY = islandScaleX * 0.65). */
   landW = 2048;
   landH = 868 * ISO_Y;
   landX = 0;
@@ -338,21 +338,20 @@ export class GameEngine {
   }
 
   /**
-   * Default framing: full island silhouette (cliffs, falls, dock) at ~67% of the
-   * shorter viewport axis, leaving sky breathing room on all sides.
+   * Opaque island ≈ 78% of land texture width. Target ~90% of viewport width
+   * so the island spans cloud-to-cloud; that fit is also the zoom-out floor.
    */
   private computeFitZoom() {
     const w = Math.max(320, this.canvas.clientWidth || 1280);
-    const h = Math.max(240, this.canvas.clientHeight || 720);
-    const frac = 0.67;
-    const zoomW = (frac * w) / Math.max(1, this.landW);
-    const zoomH = (frac * h) / Math.max(1, this.landH);
-    return Math.min(zoomW, zoomH);
+    const opaqueFrac = 0.78;
+    const widthFill = 0.9; // 88–92% band → 90%
+    return (widthFill * w) / Math.max(1, this.landW * opaqueFrac);
   }
 
   private recomputeZoomLimits() {
     const fit = this.computeFitZoom();
-    this.minZoom = fit * 0.7;
+    // 1.0x = wide framed island (minZoom); close-ups up to 2.2x
+    this.minZoom = fit;
     this.maxZoom = fit * 2.2;
     this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || fit));
     this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || fit));
@@ -364,8 +363,11 @@ export class GameEngine {
     const fit = this.computeFitZoom();
     this.targetZoom = fit;
     this.zoom = fit;
-    this.camX = 0;
-    this.camY = this.landH * 0.02;
+    // Frame around UV centerY ≈ 0.56 (above ocean horizon / dock)
+    this.landX = -this.landW / 2;
+    this.landY = -this.landH / 2;
+    this.camX = this.landX + this.landW * 0.5;
+    this.camY = this.landY + this.landH * 0.56;
     this.clampCamera();
   }
 
@@ -846,7 +848,7 @@ export class GameEngine {
     // Keep min/max in sync with viewport size without resetting the player's zoom
     {
       const fit = this.computeFitZoom();
-      this.minZoom = fit * 0.7;
+      this.minZoom = fit;
       this.maxZoom = fit * 2.2;
       this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom));
       this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom));
@@ -1326,7 +1328,7 @@ export class GameEngine {
     ctx.scale(this.zoom, this.zoom);
     ctx.translate(-this.camX, -this.camY);
 
-    // Island base flattened to FarmVille tabletop angle (scaleY = scaleX * 0.78)
+    // Island terrain only — flattened tabletop (0.65). Sprites stay 1:1 unsquashed.
     if (landImg) {
       ctx.drawImage(landImg, this.landX, this.landY, this.landW, this.landH);
     }
@@ -1471,7 +1473,7 @@ export class GameEngine {
     const bounceY = r.bounce > 0 ? Math.sin(r.bounce * Math.PI) * -18 : 0;
     const scaleY = r.squash;
     const scaleX = 2 - r.squash;
-    const size = 84; // ~12% smaller than 96 for more walking room at larger island scale
+    const size = 64; // ~24% smaller than 84 — roomy lawns on the wide island
 
     this.ctx.fillStyle = "rgba(0,0,0,0.25)";
     this.ctx.beginPath();
