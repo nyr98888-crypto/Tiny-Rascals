@@ -1,10 +1,11 @@
 import type { IslandId, Vec2 } from "./types";
 
 /**
- * One-point perspective trapezoid on the rectangular terrain plateaus.
- * Top (far horizon) narrower; bottom (front cliff) wider, inset from rim/falls.
+ * One-point perspective trapezoid on the foreshortened tabletop (ISO_Y = 0.56).
+ * UVs map through landH = texH * ISO_Y so Rascals stay on the inner floor.
+ * Top (far) narrower; bottom (front) wider, inset from rim/waterfalls.
  *
- * Default: top y≈0.28 width≈0.58; bottom y≈0.72 width≈0.76 (centered on x=0.5).
+ * Default: top y≈0.30 width≈0.56; bottom y≈0.70 width≈0.74 (centered on x=0.5).
  */
 export type TrapezoidBounds = {
   topY: number;
@@ -16,18 +17,18 @@ export type TrapezoidBounds = {
 
 export const TRAPEZOID_PLATEAU: TrapezoidBounds = {
   cx: 0.5,
-  topY: 0.28,
-  bottomY: 0.72,
-  topHalfW: 0.58 / 2,
-  bottomHalfW: 0.76 / 2,
+  topY: 0.3,
+  bottomY: 0.7,
+  topHalfW: 0.56 / 2,
+  bottomHalfW: 0.74 / 2,
 };
 
 const ISLAND_TRAPS: Record<IslandId, TrapezoidBounds> = {
   meadow: { ...TRAPEZOID_PLATEAU },
-  lagoon: { cx: 0.5, topY: 0.28, bottomY: 0.72, topHalfW: 0.29, bottomHalfW: 0.38 },
-  snack: { cx: 0.5, topY: 0.285, bottomY: 0.725, topHalfW: 0.285, bottomHalfW: 0.375 },
-  retro: { cx: 0.5, topY: 0.28, bottomY: 0.72, topHalfW: 0.29, bottomHalfW: 0.38 },
-  hollow: { cx: 0.5, topY: 0.285, bottomY: 0.72, topHalfW: 0.285, bottomHalfW: 0.375 },
+  lagoon: { cx: 0.5, topY: 0.3, bottomY: 0.7, topHalfW: 0.28, bottomHalfW: 0.37 },
+  snack: { cx: 0.5, topY: 0.305, bottomY: 0.705, topHalfW: 0.275, bottomHalfW: 0.365 },
+  retro: { cx: 0.5, topY: 0.3, bottomY: 0.7, topHalfW: 0.28, bottomHalfW: 0.37 },
+  hollow: { cx: 0.5, topY: 0.305, bottomY: 0.7, topHalfW: 0.275, bottomHalfW: 0.365 },
 };
 
 export function getIslandTrapezoid(island: IslandId): TrapezoidBounds {

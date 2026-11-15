@@ -83,9 +83,9 @@ export class GameEngine {
   /** Land texture pixel size. */
   landTexW = 2048;
   landTexH = 1127;
-  /** Display size at native aspect (ISO_Y === 1, no vertical squash). */
+  /** Display size: landH = texH * ISO_Y (0.56 foreshortened tabletop). */
   landW = 2048;
-  landH = 1127;
+  landH = 1127 * ISO_Y;
   landX = 0;
   landY = 0;
 
@@ -343,17 +343,15 @@ export class GameEngine {
   }
 
   /**
-   * Rectangular 16:9 terrain at ~82–85% of the viewport (both axes), leaving
-   * sky breathing room around the plateau and clear of HUD bars.
+   * Flattened tabletop: islandScaleX spans ~88% of viewport width.
+   * Height soft-caps so foreshortened land + waterfalls clear the switcher bar.
    */
   private computeFitZoom() {
     const w = Math.max(320, this.canvas.clientWidth || 1280);
     const h = Math.max(240, this.canvas.clientHeight || 720);
-    const frac = 0.835;
-    return Math.min(
-      (w * frac) / Math.max(1, this.landW),
-      (h * frac) / Math.max(1, this.landH)
-    );
+    const byWidth = (w * 0.88) / Math.max(1, this.landW);
+    const byHeight = (h * 0.9) / Math.max(1, this.landH);
+    return Math.min(byWidth, byHeight);
   }
 
   private recomputeZoomLimits() {
@@ -370,11 +368,11 @@ export class GameEngine {
     const fit = this.computeFitZoom();
     this.targetZoom = fit;
     this.zoom = fit;
-    // CenterY ≈ 0.50 — full plateau over the separate sky backdrop
+    // CenterY ≈ 0.52 — plateau + waterfalls above the island-switcher bar
     this.landX = -this.landW / 2;
     this.landY = -this.landH / 2;
     this.camX = this.landX + this.landW * 0.5;
-    this.camY = this.landY + this.landH * 0.5;
+    this.camY = this.landY + this.landH * 0.52;
     this.clampCamera();
   }
 
@@ -491,7 +489,7 @@ export class GameEngine {
     for (let i = this.rascals.length - 1; i >= 0; i--) {
       const r = this.rascals[i];
       const p = landToScreen(r.x, r.y, this.landX, this.landY, this.landW, this.landH);
-      const s = 64;
+      const s = 80;
       const top = p.y - s * SPRITE_ANCHOR_Y;
       if (Math.abs(wx - p.x) < s * 0.45 && wy < p.y + 10 && wy > top) return r;
     }
@@ -1189,8 +1187,8 @@ export class GameEngine {
         }
       } else {
         const wander = this.clampOnIsland(
-          0.5 + (Math.random() - 0.5) * 0.7,
-          0.28 + Math.random() * 0.44
+          0.5 + (Math.random() - 0.5) * 0.68,
+          0.3 + Math.random() * 0.4
         );
         r.target = wander;
         r.task = null;
@@ -1254,7 +1252,7 @@ export class GameEngine {
     }
 
     const stepX = (dx / dist) * speed * dt;
-    const stepY = (dy / dist) * speed * dt * ISO_Y; // ISO_Y === 1 (native aspect)
+    const stepY = (dy / dist) * speed * dt * ISO_Y; // match foreshortened floor
     r.x += stepX;
     r.y += stepY;
     const feet = this.clampOnIsland(r.x, r.y);
@@ -1289,7 +1287,11 @@ export class GameEngine {
     return this.nightBlend;
   }
 
-  /** Screen-space cover fill — sky never pans/zooms away to black void. */
+  /**
+   * Screen-space sky cover. Overscans and shifts upward (~center 20%) so the
+   * ocean horizon sinks to the bottom edge / off-screen — only open sky/clouds
+   * sit behind the floating plateau.
+   */
   private drawSkyCover(
     dayImg: HTMLImageElement | null,
     nightImg: HTMLImageElement | null,
@@ -1299,10 +1301,16 @@ export class GameEngine {
   ) {
     const ctx = this.ctx;
     const cover = (img: HTMLImageElement) => {
-      const scale = Math.max(w / img.width, h / img.height);
+      // Cover + vertical overscan so we can pan the horizon off the bottom
+      const scale = Math.max(w / img.width, h / img.height) * 1.28;
       const dw = img.width * scale;
       const dh = img.height * scale;
-      ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+      const dx = (w - dw) / 2;
+      // Place image focalY≈20% near viewport ~12% — ocean water exits below
+      const focalY = 0.2;
+      const destFocalY = 0.12;
+      const dy = destFocalY * h - focalY * dh;
+      ctx.drawImage(img, dx, dy, dw, dh);
     };
     if (dayImg) cover(dayImg);
     if (nightImg && night > 0) {
@@ -1336,7 +1344,7 @@ export class GameEngine {
     ctx.scale(this.zoom, this.zoom);
     ctx.translate(-this.camX, -this.camY);
 
-    // Rectangular terrain at native aspect over the separate full-bleed sky
+    // Flattened horizontal tabletop (scaleY = scaleX * 0.56) over open sky
     if (landImg) {
       ctx.drawImage(landImg, this.landX, this.landY, this.landW, this.landH);
     }
@@ -1483,12 +1491,13 @@ export class GameEngine {
     const scaleY = r.squash;
     const scaleX = 2 - r.squash;
     const depth = depthScaleAtY(r.y, this.save.activeIsland);
-    const size = 64 * depth;
+    const size = 80 * depth; // ~1.25× prior 64 — grounded on the flat floor
     const footOffset = size * SPRITE_ANCHOR_Y;
 
-    this.ctx.fillStyle = "rgba(0,0,0,0.25)";
+    // Crisp dark contact shadow under feet (anchorY = 0.95)
+    this.ctx.fillStyle = "rgba(0,0,0,0.38)";
     this.ctx.beginPath();
-    this.ctx.ellipse(p.x, p.y + 2, size * 0.28, Math.max(5, 7 * depth), 0, 0, Math.PI * 2);
+    this.ctx.ellipse(p.x, p.y + 1, size * 0.32, Math.max(4, 5.5 * depth), 0, 0, Math.PI * 2);
     this.ctx.fill();
 
     this.ctx.save();

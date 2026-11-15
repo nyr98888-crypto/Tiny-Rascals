@@ -292,8 +292,11 @@ export function buildCatalogIslandEntities(
   return entities;
 }
 
-/** Native terrain aspect — no vertical squash (islandScaleY === islandScaleX). */
-export const ISO_Y = 1;
+/**
+ * Horizontal tabletop foreshortening: islandScaleY = islandScaleX * 0.56
+ * so the trapezoid reads as a wide flat floor, not an upright wall.
+ */
+export const ISO_Y = 0.56;
 
 /** Bottom-center contact shadow / foot anchor on sprites (0 = top, 1 = bottom). */
 export const SPRITE_ANCHOR_Y = 0.95;
