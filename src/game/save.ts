@@ -51,7 +51,7 @@ export function defaultSave(starterPets: string[]): GameSave {
   });
 
   return {
-    version: 3,
+    version: 4,
     activeIsland: "meadow",
     dayNight: 0.25,
     manualNight: null,
@@ -72,7 +72,7 @@ export function loadSave(starterPets: string[]): GameSave {
     const raw = localStorage.getItem(KEY);
     if (!raw) return defaultSave(starterPets);
     const parsed = JSON.parse(raw) as GameSave & { clutterOffsets?: Record<string, Vec2> };
-    if (![1, 2, 3].includes(parsed.version)) return defaultSave(starterPets);
+    if (![1, 2, 3, 4].includes(parsed.version)) return defaultSave(starterPets);
 
     if (!parsed.layoutOverrides) parsed.layoutOverrides = emptyLayouts();
     for (const id of ISLAND_ORDER) {
@@ -89,7 +89,15 @@ export function loadSave(starterPets: string[]): GameSave {
       }
       delete parsed.clutterOffsets;
     }
-    parsed.version = 3;
+    // v3→v4: refresh POST kiosk + gift boat defaults (dock-side placement)
+    if (parsed.version < 4) {
+      for (const id of ISLAND_ORDER) {
+        const map = parsed.layoutOverrides[id];
+        delete map[`${id}-prop-7`];
+        delete map[`${id}-clutter-7`];
+      }
+    }
+    parsed.version = 4;
 
     applyOfflineIdle(parsed);
     return parsed;

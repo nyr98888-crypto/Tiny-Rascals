@@ -28,10 +28,10 @@ const POS = {
   clubhouse: { x: 0.76, y: 0.54 },
   egg: { x: 0.7, y: 0.57 },
 
-  // Dock approach — kiosk right of entrance; boat in water by SE pier
-  kiosk: { x: 0.66, y: 0.66 },
+  // Dock approach — POST kiosk right of bridge; gift boat in water by SE pier
+  kiosk: { x: 0.6, y: 0.59 },
   dock: { x: 0.5, y: 0.78 },
-  boat: { x: 0.72, y: 0.9 },
+  boat: { x: 0.65, y: 0.69 },
 
   // Moveable decor — grass clearings only (never on crossroads)
   bench: { x: 0.14, y: 0.46 },

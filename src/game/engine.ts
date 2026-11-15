@@ -63,6 +63,8 @@ export class GameEngine {
   heldRascal: Rascal | null = null;
   decorateMode = false;
   dragEntity: WorldEntity | null = null;
+  /** Normalized grab offset so entities don't jump on pointer-down. */
+  grabOffset = { dx: 0, dy: 0 };
   hoverEntity: WorldEntity | null = null;
   hoverRascal: Rascal | null = null;
 
@@ -336,13 +338,18 @@ export class GameEngine {
   }
 
   /**
-   * Land PNGs include transparent padding (~20–25%), so we oversize texture fill
-   * so the opaque island reads as ~70% of the viewport width.
+   * Opaque island ≈ 78% of land texture width. Target ~84% of viewport for the
+   * visible island (~18% larger than the prior ~70% framing).
    */
+  private viewTextureFill() {
+    return 0.84 / 0.78; // ≈ 1.077
+  }
+
   private recomputeZoomLimits() {
     const w = Math.max(320, this.canvas.clientWidth || 1280);
-    const fit = (1.05 * w) / Math.max(1, this.landW);
-    this.minZoom = (0.98 * w) / Math.max(1, this.landW);
+    const fill = this.viewTextureFill();
+    const fit = (fill * w) / Math.max(1, this.landW);
+    this.minZoom = ((0.84 * 0.95) / 0.78 * w) / Math.max(1, this.landW);
     this.maxZoom = this.minZoom * 2.4;
     this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || fit));
     this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || fit));
@@ -352,11 +359,15 @@ export class GameEngine {
   frameIsland() {
     const w = Math.max(320, this.canvas.clientWidth || 1280);
     this.recomputeZoomLimits();
-    const fit = (1.05 * w) / Math.max(1, this.landW);
+    const fit = (this.viewTextureFill() * w) / Math.max(1, this.landW);
     this.targetZoom = fit;
     this.zoom = fit;
     this.camX = 0;
-    this.camY = this.landH * 0.03;
+    this.camY = this.landH * 0.02;
+  }
+
+  private clampOnIsland(x: number, y: number) {
+    return clampToWalkBounds(x, y, this.save.activeIsland);
   }
 
   tryUpgrade(kind: "building" | "prop" | "crop" | "clutter" | "dock") {
@@ -472,6 +483,8 @@ export class GameEngine {
     if (this.decorateMode) {
       const ent = this.hitDecorateEntity(world.x, world.y);
       if (ent) {
+        const n = this.worldToNorm(world.x, world.y);
+        this.grabOffset = { dx: n.x - ent.x, dy: n.y - ent.y };
         this.dragEntity = ent;
         this.audio.pop();
         return;
@@ -485,6 +498,8 @@ export class GameEngine {
 
     const rascal = this.hitRascal(world.x, world.y);
     if (rascal) {
+      const n = this.worldToNorm(world.x, world.y);
+      this.grabOffset = { dx: n.x - rascal.x, dy: n.y - rascal.y };
       rascal.held = true;
       rascal.state = "HELD";
       rascal.bounce = 0.35;
@@ -511,9 +526,10 @@ export class GameEngine {
       : null;
 
     if (this.heldRascal) {
-      const n = clampToWalkBounds(
-        this.worldToNorm(world.x, world.y).x,
-        this.worldToNorm(world.x, world.y).y
+      const raw = this.worldToNorm(world.x, world.y);
+      const n = this.clampOnIsland(
+        raw.x - this.grabOffset.dx,
+        raw.y - this.grabOffset.dy
       );
       this.heldRascal.x = n.x;
       this.heldRascal.y = n.y;
@@ -521,7 +537,10 @@ export class GameEngine {
     }
     if (this.dragEntity) {
       const raw = this.worldToNorm(world.x, world.y);
-      const n = clampToWalkBounds(raw.x, raw.y);
+      const n = this.clampOnIsland(
+        raw.x - this.grabOffset.dx,
+        raw.y - this.grabOffset.dy
+      );
       this.dragEntity.x = n.x;
       this.dragEntity.y = n.y;
       this.dragEntity.footY = n.y;
@@ -541,21 +560,26 @@ export class GameEngine {
     this.canvas.classList.remove("dragging");
 
     if (this.dragEntity) {
-      const clamped = clampToWalkBounds(this.dragEntity.x, this.dragEntity.y);
+      const clamped = this.clampOnIsland(this.dragEntity.x, this.dragEntity.y);
       this.dragEntity.x = clamped.x;
       this.dragEntity.y = clamped.y;
       this.dragEntity.footY = clamped.y;
       this.persistEntityLayout(this.dragEntity);
       this.dragEntity = null;
+      this.grabOffset = { dx: 0, dy: 0 };
       writeSave(this.save);
       this.emit();
     }
 
     if (this.heldRascal) {
       const r = this.heldRascal;
+      const drop = this.clampOnIsland(r.x, r.y);
+      r.x = drop.x;
+      r.y = drop.y;
       r.held = false;
       r.bounce = 0.45;
       r.squash = 1.25;
+      this.grabOffset = { dx: 0, dy: 0 };
       const prop = this.nearestInteractable(r.x, r.y, 0.08);
       const friend = this.nearestRascal(r, 0.07);
       if (prop) {
@@ -830,7 +854,7 @@ export class GameEngine {
         const friend = this.nearestRascal(r, 0.25);
         if (friend) r.target = { x: friend.x, y: friend.y };
       } else {
-        const wander = clampToWalkBounds(
+        const wander = this.clampOnIsland(
           0.2 + Math.random() * 0.6,
           0.2 + Math.random() * 0.55
         );
@@ -883,6 +907,9 @@ export class GameEngine {
 
     r.x += (dx / dist) * speed * dt;
     r.y += (dy / dist) * speed * dt;
+    const feet = this.clampOnIsland(r.x, r.y);
+    r.x = feet.x;
+    r.y = feet.y;
     r.facing = dx >= 0 ? 1 : -1;
     r.pose = speed > 0.18 ? POSE.dash : Math.sin(this.time * 8 + r.x * 10) > 0 ? POSE.walk : POSE.hop;
   }
@@ -1082,7 +1109,7 @@ export class GameEngine {
     const bounceY = r.bounce > 0 ? Math.sin(r.bounce * Math.PI) * -18 : 0;
     const scaleY = r.squash;
     const scaleX = 2 - r.squash;
-    const size = 96;
+    const size = 84; // ~12% smaller than 96 for more walking room at larger island scale
 
     this.ctx.fillStyle = "rgba(0,0,0,0.25)";
     this.ctx.beginPath();
