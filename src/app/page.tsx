@@ -1,3 +1,5 @@
+import { SkyIslandScene } from "@/components/SkyIslandScene";
+
 export default function HomePage() {
-  return <main id="app-root" />;
+  return <SkyIslandScene />;
 }

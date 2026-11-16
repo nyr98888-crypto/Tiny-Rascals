@@ -9,9 +9,9 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #0f1115;
-  color: #f3ead7;
-  font-family: system-ui, sans-serif;
+  background: #6eb6e8;
+  color: #1a1d24;
+  font-family: "Segoe UI", system-ui, sans-serif;
 }
 
 html,
@@ -21,7 +21,85 @@ body,
   inset: 0;
 }
 
-#app-root {
+#app-root,
+.sky-island {
   width: 100vw;
   height: 100vh;
+}
+
+.sky-island {
+  position: relative;
+  overflow: hidden;
+}
+
+/**
+ * Sky backdrop: stretch so only the upper ~65% of sky_bg (sky + clouds)
+ * fills the viewport — ocean strip stays cropped below.
+ */
+.sky-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: url("/arena/sky_bg.png");
+  background-repeat: no-repeat;
+  background-position: center top;
+  background-size: 100% calc(100% / 0.65);
+  pointer-events: none;
+}
+
+/**
+ * Floating island: near bottom, ~98% viewport width, a few pixels of air.
+ */
+.island-plate {
+  position: absolute;
+  z-index: 1;
+  left: 16px;
+  right: 16px;
+  bottom: 12px;
+  width: calc(100% - 32px);
+  height: auto;
+  max-height: calc(100vh - 24px);
+  object-fit: contain;
+  object-position: bottom center;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/** Playfield — JS syncs exact bounds to the island plate image. */
+.play-canvas {
+  position: absolute;
+  z-index: 2;
+  left: 16px;
+  bottom: 12px;
+  width: calc(100% - 32px);
+  height: 50%;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.hint-bar {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(12, 18, 28, 0.45);
+  color: #f4f0e6;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+
+@media (max-width: 720px) {
+  .hint-bar {
+    font-size: 0.65rem;
+    max-width: 92vw;
+    white-space: normal;
+    text-align: center;
+  }
 }
