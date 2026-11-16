@@ -12,31 +12,38 @@
     },
     "lagoon": {
       "src": "/world/a2.jpg",
-      "w": 5504,
-      "h": 3072,
+      "w": 3200,
+      "h": 1786,
       "area": "a2",
       "theme": "Lagoon"
     },
     "snack": {
       "src": "/world/a3.jpg",
-      "w": 5504,
-      "h": 3072,
+      "w": 3200,
+      "h": 1786,
       "area": "a3",
       "theme": "Orchard"
     },
     "retro": {
       "src": "/world/a4.jpg",
-      "w": 5504,
-      "h": 3072,
+      "w": 3200,
+      "h": 1786,
       "area": "a4",
       "theme": "Ruins"
     },
     "hollow": {
       "src": "/world/a5.jpg",
-      "w": 5504,
-      "h": 3072,
+      "w": 3200,
+      "h": 1786,
       "area": "a5",
       "theme": "Hollow"
+    },
+    "shore": {
+      "src": "/world/a6-shore.jpg",
+      "w": 3200,
+      "h": 1786,
+      "area": "a6",
+      "theme": "Shore"
     }
   },
   "backdrops": {

@@ -1,6 +1,8 @@
 import type { IslandId, WorldEntity } from "./types";
 import type assetManifest from "@/data/assetManifest.json";
 import { getClearings, getPlots, usesSharedMapGraph } from "./mapGraph";
+import { localToGlobal } from "./worldGrid";
+import { ISLAND_ORDER } from "./types";
 
 type Manifest = typeof assetManifest;
 
@@ -153,7 +155,9 @@ function buildMeadowEntities(
 
   return props.map((p) => {
     const id = `meadow-prop-${p.key}`;
-    const pos = layoutOverrides[id] ?? { x: p.x, y: p.y };
+    const local = { x: p.x, y: p.y };
+    const fallback = localToGlobal("meadow", local.x, local.y);
+    const pos = layoutOverrides[id] ?? fallback;
     return {
       id,
       kind: p.kind,
@@ -168,10 +172,20 @@ function buildMeadowEntities(
   });
 }
 
+function toGlobalPos(
+  island: IslandId,
+  localX: number,
+  localY: number,
+  id: string,
+  layoutOverrides: Record<string, { x: number; y: number }>
+) {
+  return layoutOverrides[id] ?? localToGlobal(island, localX, localY);
+}
+
 /**
- * Active island world entities.
+ * Per-plot entities in global UV (0–1 across the full ranch).
  * a1 Meadow: open-grass interactive props (no dirt plots).
- * Other shared-graph islands: plots + starter stations.
+ * Other plots: soils + starter stations.
  */
 export function buildIslandEntities(
   manifest: Manifest,
@@ -190,7 +204,7 @@ export function buildIslandEntities(
   const entities: WorldEntity[] = [];
   getPlots().forEach((plot, i) => {
     const id = `${island}-soil-${plot.id}`;
-    const pos = layoutOverrides[id] ?? { x: plot.x, y: plot.y };
+    const pos = toGlobalPos(island, plot.x, plot.y, id, layoutOverrides);
     entities.push({
       id,
       kind: "crop",
@@ -205,7 +219,6 @@ export function buildIslandEntities(
     });
   });
 
-  // Starter workstations in open clearings (wash / sleep / kitchen)
   const clears = getClearings();
   const starters: {
     id: string;
@@ -221,7 +234,7 @@ export function buildIslandEntities(
     const pad = clears[i] ?? clears[0];
     if (!pad) return;
     const id = `${island}-station-${st.id}`;
-    const pos = layoutOverrides[id] ?? { x: pad.x, y: pad.y };
+    const pos = toGlobalPos(island, pad.x, pad.y, id, layoutOverrides);
     const propId = pickProp(manifest, tiers.propTier, st.slot) ?? pickProp(manifest, 1, st.slot);
     if (!propId) return;
     entities.push({
@@ -237,6 +250,29 @@ export function buildIslandEntities(
     });
   });
   return entities;
+}
+
+/** All six plots' entities in one continuous world list. */
+export function buildWorldEntities(
+  manifest: Manifest,
+  islands: Record<
+    IslandId,
+    {
+      buildingTier: 1 | 2 | 3;
+      propTier: 1 | 2 | 3;
+      cropTier: 1 | 2 | 3;
+      clutterTier: 1 | 2 | 3;
+    }
+  >,
+  layoutOverrides: Record<IslandId, Record<string, { x: number; y: number }>>
+): WorldEntity[] {
+  const out: WorldEntity[] = [];
+  for (const id of ISLAND_ORDER) {
+    out.push(
+      ...buildIslandEntities(manifest, id, islands[id], layoutOverrides[id] ?? {})
+    );
+  }
+  return out;
 }
 
 /**

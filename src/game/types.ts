@@ -1,4 +1,10 @@
-export type IslandId = "meadow" | "lagoon" | "snack" | "retro" | "hollow";
+export type IslandId =
+  | "meadow"
+  | "lagoon"
+  | "snack"
+  | "retro"
+  | "hollow"
+  | "shore";
 
 export type RascalState =
   | "WANDER_PATH"
@@ -98,6 +104,8 @@ export interface Resources {
   /** a4 Tokens/Stone */
   tokens: number;
   gems: number;
+  /** a6 Shore shells */
+  shells: number;
 }
 
 export interface IslandProgress {
@@ -110,17 +118,19 @@ export interface IslandProgress {
 }
 
 export interface GameSave {
-  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  /** v9: continuous 3×2 ranch + shore plot; spawned x/y are global UV. */
+  version: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   activeIsland: IslandId;
   dayNight: number;
   manualNight: boolean | null;
   resources: Resources;
   islands: Record<IslandId, IslandProgress>;
   discovered: string[];
+  /** Positions are global UV (0–1 across the full 3×2 ranch). */
   spawned: Record<IslandId, { petId: string; x: number; y: number; xp: number; level: number }[]>;
   /** @deprecated migrated into layoutOverrides */
   clutterOffsets?: Record<string, Vec2>;
-  /** Per-island custom entity positions (decorate mode). Dock is never stored. */
+  /** Per-plot custom entity positions (decorate mode). Stored as global UV. */
   layoutOverrides: Record<IslandId, Record<string, Vec2>>;
   lastSeen: number;
   sandboxPreviewAll: boolean;
@@ -139,19 +149,21 @@ export interface Particle {
   text?: string;
 }
 
-/** Switcher order: a4 · a2 · a1 · a3 · a5 */
+/** Bottom plot bar order (matches 3×2 left→right, top→bottom). */
 export const ISLAND_ORDER: IslandId[] = [
   "retro",
   "lagoon",
   "meadow",
   "snack",
   "hollow",
+  "shore",
 ];
 
 export const ISLAND_LABELS: Record<IslandId, string> = {
-  retro: "A4 Ruins",
-  lagoon: "A2 Lagoon",
-  meadow: "A1 Meadow",
-  snack: "A3 Orchard",
-  hollow: "A5 Hollow",
+  retro: "Ruins",
+  lagoon: "Lagoon",
+  meadow: "Meadow",
+  snack: "Orchard",
+  hollow: "Hollow",
+  shore: "Shore",
 };

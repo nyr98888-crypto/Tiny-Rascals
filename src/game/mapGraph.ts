@@ -2,39 +2,51 @@ import type { IslandId, Vec2 } from "./types";
 import { getWorldLayout, type ClearingDef, type PlotDef } from "./worldLayouts";
 
 /** Area codes (UI) ↔ internal island ids. */
-export const AREA_CODE: Record<IslandId, "a1" | "a2" | "a3" | "a4" | "a5"> = {
+export const AREA_CODE: Record<
+  IslandId,
+  "a1" | "a2" | "a3" | "a4" | "a5" | "a6"
+> = {
   meadow: "a1",
   lagoon: "a2",
   snack: "a3",
   retro: "a4",
   hollow: "a5",
+  shore: "a6",
 };
 
-/** Switcher bar order: a4, a2, a1, a3, a5 */
+/** Bottom plot bar / grid order. */
 export const AREA_SWITCHER_ORDER: IslandId[] = [
   "retro",
   "lagoon",
   "meadow",
   "snack",
   "hollow",
+  "shore",
 ];
 
 /**
- * Linear chain portals (left / right road exits).
- * a4 left-blocked · a5 right-blocked.
+ * Adjacent plots in the continuous 3×2 ranch (cardinal neighbors).
+ * Kept for unlock / resource hints — travel is free roam, not portals.
  */
 export const AREA_LINKS: Record<
   IslandId,
-  { left: IslandId | null; right: IslandId | null }
+  { left: IslandId | null; right: IslandId | null; up?: IslandId | null; down?: IslandId | null }
 > = {
-  retro: { left: null, right: "lagoon" },
-  lagoon: { left: "retro", right: "meadow" },
-  meadow: { left: "lagoon", right: "snack" },
-  snack: { left: "meadow", right: "hollow" },
-  hollow: { left: "snack", right: null },
+  retro: { left: null, right: "lagoon", up: null, down: "snack" },
+  lagoon: { left: "retro", right: "meadow", up: null, down: "hollow" },
+  meadow: { left: "lagoon", right: null, up: null, down: "shore" },
+  snack: { left: null, right: "hollow", up: "retro", down: null },
+  hollow: { left: "snack", right: "shore", up: "lagoon", down: null },
+  shore: { left: "hollow", right: null, up: "meadow", down: null },
 };
 
-export type AreaResource = "wood" | "berries" | "crops" | "tokens" | "gems";
+export type AreaResource =
+  | "wood"
+  | "berries"
+  | "crops"
+  | "tokens"
+  | "gems"
+  | "shells";
 
 export const AREA_RESOURCE: Record<IslandId, AreaResource> = {
   meadow: "wood",
@@ -42,6 +54,7 @@ export const AREA_RESOURCE: Record<IslandId, AreaResource> = {
   snack: "crops",
   retro: "tokens",
   hollow: "gems",
+  shore: "shells",
 };
 
 export const RESOURCE_LABELS: Record<AreaResource, string> = {
@@ -50,6 +63,7 @@ export const RESOURCE_LABELS: Record<AreaResource, string> = {
   crops: "Treats",
   tokens: "Tokens",
   gems: "Gems",
+  shells: "Shells",
 };
 
 /** Live shared layout (plots / clearings / nodes) — editable via calibrator. */

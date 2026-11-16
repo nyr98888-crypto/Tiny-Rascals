@@ -1,3 +1,4 @@
+import { localToGlobal } from "./worldGrid";
 import {
   ISLAND_ORDER,
   type GameSave,
@@ -9,8 +10,8 @@ import {
 
 const KEY = "tiny-rascals-save-v1";
 
-/** Level 1 Meadow spawn ring on the open grass clearing. */
-function meadowSpawnPoint(k: number): Vec2 {
+/** Spawn ring in local plot UV (converted to global on write). */
+function localSpawnPoint(k: number): Vec2 {
   const col = k % 3;
   const row = Math.floor(k / 3);
   return {
@@ -26,6 +27,18 @@ function emptyLayouts(): Record<IslandId, Record<string, Vec2>> {
     snack: {},
     retro: {},
     hollow: {},
+    shore: {},
+  };
+}
+
+function emptySpawned(): GameSave["spawned"] {
+  return {
+    meadow: [],
+    lagoon: [],
+    snack: [],
+    retro: [],
+    hollow: [],
+    shore: [],
   };
 }
 
@@ -43,25 +56,26 @@ function defaultIsland(unlocked: boolean): IslandProgress {
 export function defaultSave(starterPets: string[]): GameSave {
   const islands = {} as Record<IslandId, IslandProgress>;
   for (const id of ISLAND_ORDER) {
-    // Sandbox preview: all biomes unlocked with roaming Rascals
     islands[id] = defaultIsland(true);
   }
   islands.meadow.dockRepaired = false;
 
-  const spawned = {} as GameSave["spawned"];
-  for (const id of ISLAND_ORDER) spawned[id] = [];
-  // At least a few Rascals on every biome to verify scale / walk bounds
+  const spawned = emptySpawned();
   const picks = starterPets.filter(Boolean);
-  const perIsland = Math.max(3, Math.ceil(Math.min(picks.length, 15) / ISLAND_ORDER.length));
+  const perIsland = Math.max(
+    2,
+    Math.ceil(Math.min(picks.length, 18) / ISLAND_ORDER.length)
+  );
   ISLAND_ORDER.forEach((island, ii) => {
     for (let k = 0; k < perIsland; k++) {
       const petId = picks[(ii * perIsland + k) % picks.length] ?? picks[0];
       if (!petId) continue;
-      const feet = meadowSpawnPoint(k);
+      const local = localSpawnPoint(k);
+      const g = localToGlobal(island, local.x, local.y);
       spawned[island].push({
         petId,
-        x: feet.x,
-        y: feet.y,
+        x: g.x,
+        y: g.y,
         xp: 0,
         level: 1,
       });
@@ -69,13 +83,17 @@ export function defaultSave(starterPets: string[]): GameSave {
   });
 
   return {
-    version: 8,
+    version: 9,
     activeIsland: "meadow",
     dayNight: 0.25,
     manualNight: null,
-    resources: { wood: 12, berries: 8, crops: 4, tokens: 3, gems: 0 },
+    resources: { wood: 12, berries: 8, crops: 4, tokens: 3, gems: 0, shells: 2 },
     islands,
-    discovered: [...new Set(Object.values(spawned).flatMap((list) => list.map((s) => s.petId)))],
+    discovered: [
+      ...new Set(
+        Object.values(spawned).flatMap((list) => list.map((s) => s.petId))
+      ),
+    ],
     spawned,
     layoutOverrides: emptyLayouts(),
     lastSeen: Date.now(),
@@ -89,18 +107,33 @@ export function loadSave(starterPets: string[]): GameSave {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return defaultSave(starterPets);
-    const parsed = JSON.parse(raw) as GameSave & { clutterOffsets?: Record<string, Vec2> };
-    if (![1, 2, 3, 4, 5, 6, 7, 8].includes(parsed.version)) return defaultSave(starterPets);
+    const parsed = JSON.parse(raw) as GameSave & {
+      clutterOffsets?: Record<string, Vec2>;
+    };
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9].includes(parsed.version)) {
+      return defaultSave(starterPets);
+    }
 
     if (!parsed.layoutOverrides) parsed.layoutOverrides = emptyLayouts();
-    for (const id of ISLAND_ORDER) {
-      if (!parsed.layoutOverrides[id]) parsed.layoutOverrides[id] = {};
-    }
-    if (!parsed.spawned) {
-      parsed.spawned = { meadow: [], lagoon: [], snack: [], retro: [], hollow: [] };
+    if (!parsed.spawned) parsed.spawned = emptySpawned();
+    if (!parsed.islands) parsed.islands = {} as GameSave["islands"];
+    if (!parsed.resources) {
+      parsed.resources = {
+        wood: 12,
+        berries: 8,
+        crops: 4,
+        tokens: 3,
+        gems: 0,
+        shells: 0,
+      };
     }
 
-    // v1→v2 cleared old clutter; v2→v3 promotes flat clutterOffsets into per-island maps
+    for (const id of ISLAND_ORDER) {
+      if (!parsed.layoutOverrides[id]) parsed.layoutOverrides[id] = {};
+      if (!parsed.spawned[id]) parsed.spawned[id] = [];
+      if (!parsed.islands[id]) parsed.islands[id] = defaultIsland(true);
+    }
+
     if (parsed.version < 2) {
       parsed.layoutOverrides = emptyLayouts();
     } else if (parsed.version < 3 && parsed.clutterOffsets) {
@@ -110,7 +143,6 @@ export function loadSave(starterPets: string[]): GameSave {
       }
       delete parsed.clutterOffsets;
     }
-    // v3→v4: refresh POST kiosk + gift boat defaults (dock-side placement)
     if (parsed.version < 4) {
       for (const id of ISLAND_ORDER) {
         const map = parsed.layoutOverrides[id];
@@ -118,11 +150,9 @@ export function loadSave(starterPets: string[]): GameSave {
         delete map[`${id}-clutter-7`];
       }
     }
-    // v4→v5: oval islands start clean — wipe layout overrides
     if (parsed.version < 5) {
       parsed.layoutOverrides = emptyLayouts();
     }
-    // v5→v6: seed active Rascals on every island for god's-eye verification
     if (parsed.version < 6) {
       const pool =
         starterPets.length > 0
@@ -131,14 +161,14 @@ export function loadSave(starterPets: string[]): GameSave {
             ? parsed.discovered
             : ["axolotl", "shiba", "frog", "otter", "penguin"];
       for (const island of ISLAND_ORDER) {
-        if (!parsed.spawned[island]) parsed.spawned[island] = [];
         if (parsed.spawned[island].length > 0) continue;
         for (let k = 0; k < 3; k++) {
           const petId = pool[(ISLAND_ORDER.indexOf(island) * 3 + k) % pool.length];
+          const local = localSpawnPoint(k);
           parsed.spawned[island].push({
             petId,
-            x: 0.4 + (k % 3) * 0.1,
-            y: 0.34 + Math.floor(k / 3) * 0.08,
+            x: local.x,
+            y: local.y,
             xp: 0,
             level: 1,
           });
@@ -148,50 +178,63 @@ export function loadSave(starterPets: string[]): GameSave {
       }
       parsed.sandboxPreviewAll = true;
     }
-    // v6→v7: Level 1 is land-meadow — boot on Meadow, snap Meadow feet to crossroads
     if (parsed.version < 7) {
       parsed.activeIsland = "meadow";
       parsed.islands.meadow.unlocked = true;
-      const list = parsed.spawned.meadow ?? [];
-      if (list.length === 0) {
-        const pool =
-          starterPets.length > 0
-            ? starterPets
-            : parsed.discovered.length > 0
-              ? parsed.discovered
-              : ["axolotl", "shiba", "frog"];
-        for (let k = 0; k < 3; k++) {
-          const petId = pool[k % pool.length];
-          const feet = meadowSpawnPoint(k);
-          list.push({ petId, x: feet.x, y: feet.y, xp: 0, level: 1 });
-          if (!parsed.discovered.includes(petId)) parsed.discovered.push(petId);
-        }
-      } else {
-        list.forEach((s, k) => {
-          const feet = meadowSpawnPoint(k);
-          s.x = feet.x;
-          s.y = feet.y;
-        });
-      }
-      parsed.spawned.meadow = list;
     }
-    // v7→v8: a2–a5 chain maps + tokens resource; keep a1 Meadow as home
     if (parsed.version < 8) {
       if (typeof parsed.resources.tokens !== "number") parsed.resources.tokens = 0;
       parsed.activeIsland = "meadow";
-      parsed.islands.meadow.unlocked = true;
-      for (const id of ISLAND_ORDER) {
-        if (!parsed.spawned[id]) parsed.spawned[id] = [];
-        parsed.spawned[id].forEach((s, k) => {
-          const feet = meadowSpawnPoint(k);
-          s.x = feet.x;
-          s.y = feet.y;
-        });
-      }
     }
-    parsed.version = 8;
-    if (!parsed.activeIsland) parsed.activeIsland = "meadow";
+
+    // v8→v9: continuous 3×2 ranch — local UV → global UV; add shore + shells
+    if (parsed.version < 9) {
+      if (typeof parsed.resources.shells !== "number") parsed.resources.shells = 0;
+      if (!parsed.islands.shore) parsed.islands.shore = defaultIsland(true);
+      if (!parsed.spawned.shore) parsed.spawned.shore = [];
+      if (!parsed.layoutOverrides.shore) parsed.layoutOverrides.shore = {};
+
+      for (const id of ISLAND_ORDER) {
+        if (id === "shore" && parsed.version < 9) {
+          // seed a couple of shore rascals if empty
+          if (parsed.spawned.shore.length === 0) {
+            const pool =
+              starterPets.length > 0
+                ? starterPets
+                : parsed.discovered.length > 0
+                  ? parsed.discovered
+                  : ["otter", "axolotl", "frog"];
+            for (let k = 0; k < 2; k++) {
+              const local = localSpawnPoint(k);
+              const g = localToGlobal("shore", local.x, local.y);
+              parsed.spawned.shore.push({
+                petId: pool[k % pool.length],
+                x: g.x,
+                y: g.y,
+                xp: 0,
+                level: 1,
+              });
+            }
+          }
+          continue;
+        }
+        parsed.spawned[id] = (parsed.spawned[id] ?? []).map((s) => {
+          const g = localToGlobal(id, s.x, s.y);
+          return { ...s, x: g.x, y: g.y };
+        });
+        const map = parsed.layoutOverrides[id] ?? {};
+        for (const [entId, pos] of Object.entries(map)) {
+          map[entId] = localToGlobal(id, pos.x, pos.y);
+        }
+      }
+      parsed.activeIsland = "meadow";
+      parsed.sandboxPreviewAll = true;
+    }
+
+    if (typeof parsed.resources.shells !== "number") parsed.resources.shells = 0;
     if (typeof parsed.resources.tokens !== "number") parsed.resources.tokens = 0;
+    parsed.version = 9;
+    if (!parsed.activeIsland) parsed.activeIsland = "meadow";
 
     applyOfflineIdle(parsed);
     return parsed;
@@ -216,6 +259,7 @@ function applyOfflineIdle(save: GameSave) {
   save.resources.crops += Math.floor(hours * rate * 0.5);
   save.resources.tokens += Math.floor(hours * rate * 0.35);
   save.resources.gems += Math.floor(hours * 0.15);
+  save.resources.shells += Math.floor(hours * rate * 0.25);
 }
 
 export function canAfford(res: Resources, cost: Partial<Resources>) {
@@ -224,7 +268,8 @@ export function canAfford(res: Resources, cost: Partial<Resources>) {
     res.berries >= (cost.berries ?? 0) &&
     res.crops >= (cost.crops ?? 0) &&
     res.tokens >= (cost.tokens ?? 0) &&
-    res.gems >= (cost.gems ?? 0)
+    res.gems >= (cost.gems ?? 0) &&
+    res.shells >= (cost.shells ?? 0)
   );
 }
 
@@ -234,29 +279,32 @@ export function spend(res: Resources, cost: Partial<Resources>) {
   res.crops -= cost.crops ?? 0;
   res.tokens -= cost.tokens ?? 0;
   res.gems -= cost.gems ?? 0;
+  res.shells -= cost.shells ?? 0;
 }
 
-/** Upgrades pull from all 5 area resources. */
+/** Upgrades pull from ranch resources. */
 export const UPGRADE_COSTS = {
-  building: { wood: 16, berries: 10, crops: 6, tokens: 4, gems: 0 },
-  prop: { wood: 10, berries: 8, crops: 5, tokens: 3, gems: 0 },
-  crop: { wood: 8, berries: 10, crops: 8, tokens: 2, gems: 0 },
-  clutter: { wood: 8, berries: 6, crops: 4, tokens: 3, gems: 0 },
-  dock: { wood: 24, berries: 12, crops: 10, tokens: 8, gems: 1 },
+  building: { wood: 16, berries: 10, crops: 6, tokens: 4, gems: 0, shells: 0 },
+  prop: { wood: 10, berries: 8, crops: 5, tokens: 3, gems: 0, shells: 0 },
+  crop: { wood: 8, berries: 10, crops: 8, tokens: 2, gems: 0, shells: 0 },
+  clutter: { wood: 8, berries: 6, crops: 4, tokens: 3, gems: 0, shells: 0 },
+  dock: { wood: 24, berries: 12, crops: 10, tokens: 8, gems: 1, shells: 4 },
 } as const;
 
-/** Dock repair unlocks open neighbors in the a4–a2–a1–a3–a5 chain. */
 export const NEXT_ISLAND: Partial<Record<IslandId, IslandId>> = {
-  meadow: "snack",
-  lagoon: "retro",
+  meadow: "shore",
+  lagoon: "hollow",
   snack: "hollow",
   retro: "lagoon",
+  hollow: "shore",
+  shore: "meadow",
 };
 
 export const UNLOCK_NEIGHBORS: Partial<Record<IslandId, IslandId[]>> = {
-  meadow: ["lagoon", "snack"],
-  lagoon: ["retro", "meadow"],
-  snack: ["meadow", "hollow"],
-  retro: ["lagoon"],
-  hollow: ["snack"],
+  meadow: ["lagoon", "shore"],
+  lagoon: ["retro", "meadow", "hollow"],
+  snack: ["retro", "hollow"],
+  retro: ["lagoon", "snack"],
+  hollow: ["lagoon", "snack", "shore"],
+  shore: ["meadow", "hollow"],
 };
