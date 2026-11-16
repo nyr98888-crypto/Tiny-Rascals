@@ -21,6 +21,10 @@ import {
   AREA_LINKS,
   AREA_RESOURCE,
   RESOURCE_LABELS,
+  getClearings,
+  getEdges,
+  getNodes,
+  getPlots,
   nearOpenPortal,
   portalDestination,
   portalSideAt,
@@ -30,6 +34,12 @@ import {
   type AreaResource,
 } from "./mapGraph";
 import { clampToWalkBounds, depthScaleAtY, randomPointInClearing } from "./walkBounds";
+import {
+  exportWorldLayout,
+  getWorldLayout,
+  setWorldLayout,
+  type WorldLayoutFile,
+} from "./worldLayouts";
 import type {
   GameSave,
   IslandId,
@@ -114,7 +124,16 @@ export class GameEngine {
   dragLast = { x: 0, y: 0 };
   heldRascal: Rascal | null = null;
   decorateMode = false;
+  /** Live overlay to drag plot / clearing / road pins into place. */
+  layoutEditMode = false;
+  layoutDrag:
+    | { kind: "plot" | "clearing" | "node"; id: string }
+    | null = null;
+  layoutSaveStatus = "";
   dragEntity: WorldEntity | null = null;
+
+  /** Rascal draw size multiplier (~1.6× prior 80px base). */
+  static RASCAL_SIZE = 128;
   /** Normalized grab offset so entities don't jump on pointer-down. */
   grabOffset = { dx: 0, dy: 0 };
   hoverEntity: WorldEntity | null = null;
@@ -202,7 +221,19 @@ export class GameEngine {
   }
 
   async start() {
+    // Preload all 5 area backgrounds first — zero black flicker on switch
+    await this.preloadAllLands();
     await this.loadActiveTextures();
+    // Refresh calibrator pins from disk if available
+    try {
+      const res = await fetch("/api/world-layouts");
+      if (res.ok) {
+        const data = (await res.json()) as WorldLayoutFile;
+        if (data?.shared) setWorldLayout(data);
+      }
+    } catch {
+      /* keep bundled defaults */
+    }
     this.resize();
     this.frameIsland();
     this.nightBlend = this.nightTarget();
@@ -216,6 +247,16 @@ export class GameEngine {
     };
     this.raf = requestAnimationFrame(loop);
     window.addEventListener("resize", this.resize);
+  }
+
+  /** Keep every area land texture warm in the cache. */
+  private async preloadAllLands() {
+    const srcs = ISLAND_ORDER.map((id) => manifest.lands[id].src);
+    await this.textures.loadMany(srcs);
+  }
+
+  private allLandSrcs(): Set<string> {
+    return new Set(ISLAND_ORDER.map((id) => manifest.lands[id].src));
   }
 
   stop() {
@@ -237,9 +278,9 @@ export class GameEngine {
   private async loadActiveTextures() {
     const island = this.save.activeIsland;
     const land = manifest.lands[island];
-    // Full-bleed world maps include their own sky — no separate backdrop layer
-    const keep = new Set<string>([land.src]);
-    const srcs = [land.src];
+    // Always retain all 5 land maps + active sprites (no black flash on switch)
+    const keep = this.allLandSrcs();
+    const srcs = [...keep];
 
     for (const e of this.entities) {
       const spr = manifest.worldSprites[e.spriteId as keyof typeof manifest.worldSprites];
@@ -267,7 +308,7 @@ export class GameEngine {
     }
     await this.textures.loadMany(srcs);
     this.textures.disposeExcept(keep);
-    // Prefer native texture size so land-meadow fills the 16:9 viewport edge-to-edge
+    // Prefer native texture size for edge-to-edge 16:9 cover
     const landImg = this.textures.get(land.src);
     const tw = landImg?.naturalWidth || land.w;
     const th = landImg?.naturalHeight || land.h;
@@ -276,6 +317,41 @@ export class GameEngine {
     this.landW = tw;
     this.landH = th * ISO_Y;
     this.recomputeZoomLimits();
+  }
+
+  toggleLayoutEdit() {
+    this.layoutEditMode = !this.layoutEditMode;
+    this.layoutDrag = null;
+    if (this.layoutEditMode) {
+      this.decorateMode = false;
+      this.dragEntity = null;
+    }
+    this.layoutSaveStatus = this.layoutEditMode
+      ? "Drag pins · Save writes world-layouts.json"
+      : "";
+    this.emit();
+  }
+
+  async saveWorldLayout() {
+    this.layoutSaveStatus = "Saving…";
+    this.emit();
+    try {
+      const payload = exportWorldLayout();
+      const res = await fetch("/api/world-layouts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Save failed");
+      setWorldLayout(data.layout as WorldLayoutFile);
+      // Refresh entity feet to new plot/clearing positions
+      this.reloadIsland();
+      this.layoutSaveStatus = "Saved world-layouts.json";
+    } catch (err) {
+      this.layoutSaveStatus = err instanceof Error ? err.message : "Save failed";
+    }
+    this.emit();
   }
 
   reloadIsland() {
@@ -548,7 +624,7 @@ export class GameEngine {
     for (let i = this.rascals.length - 1; i >= 0; i--) {
       const r = this.rascals[i];
       const p = landToScreen(r.x, r.y, this.landX, this.landY, this.landW, this.landH);
-      const s = 80;
+      const s = GameEngine.RASCAL_SIZE;
       const top = p.y - s * SPRITE_ANCHOR_Y;
       if (Math.abs(wx - p.x) < s * 0.45 && wy < p.y + 10 && wy > top) return r;
     }
@@ -574,12 +650,68 @@ export class GameEngine {
     return null;
   }
 
+  private hitLayoutPin(nx: number, ny: number): {
+    kind: "plot" | "clearing" | "node";
+    id: string;
+  } | null {
+    const hitR = 0.028;
+    for (const p of getPlots()) {
+      if (Math.hypot(nx - p.x, ny - p.y) < hitR) return { kind: "plot", id: p.id };
+    }
+    for (const c of getClearings()) {
+      if (Math.hypot(nx - c.x, ny - c.y) < hitR) return { kind: "clearing", id: c.id };
+    }
+    for (const [id, pos] of Object.entries(getNodes())) {
+      // Skip auto plot/clear spur duplicates when editing primary pins
+      if (id.startsWith("plot_") || id.startsWith("clear_")) continue;
+      if (Math.hypot(nx - pos.x, ny - pos.y) < hitR) return { kind: "node", id };
+    }
+    return null;
+  }
+
+  private moveLayoutPin(kind: "plot" | "clearing" | "node", id: string, nx: number, ny: number) {
+    const layout = getWorldLayout();
+    const x = Math.max(0, Math.min(1, nx));
+    const y = Math.max(0, Math.min(1, ny));
+    if (kind === "plot") {
+      const p = layout.shared.plots.find((q) => q.id === id);
+      if (p) {
+        p.x = x;
+        p.y = y;
+      }
+    } else if (kind === "clearing") {
+      const c = layout.shared.clearings.find((q) => q.id === id);
+      if (c) {
+        c.x = x;
+        c.y = y;
+      }
+    } else {
+      layout.shared.nodes[id] = { x, y };
+    }
+    setWorldLayout(layout);
+  }
+
   private onPointerDown = (ev: PointerEvent) => {
     const rect = this.canvas.getBoundingClientRect();
     const sx = ev.clientX - rect.left;
     const sy = ev.clientY - rect.top;
     const world = this.screenToWorld(sx, sy);
     this.canvas.setPointerCapture(ev.pointerId);
+
+    if (this.layoutEditMode) {
+      const n = this.worldToNorm(world.x, world.y);
+      const pin = this.hitLayoutPin(n.x, n.y);
+      if (pin) {
+        this.layoutDrag = pin;
+        this.dragging = false;
+        this.canvas.classList.remove("dragging");
+        return;
+      }
+      this.dragging = true;
+      this.canvas.classList.add("dragging");
+      this.dragLast = { x: sx, y: sy };
+      return;
+    }
 
     if (this.decorateMode) {
       const ent = this.hitDecorateEntity(world.x, world.y);
@@ -628,10 +760,19 @@ export class GameEngine {
     const sx = ev.clientX - rect.left;
     const sy = ev.clientY - rect.top;
     const world = this.screenToWorld(sx, sy);
-    this.hoverRascal = this.decorateMode ? null : this.hitRascal(world.x, world.y);
+    this.hoverRascal =
+      this.decorateMode || this.layoutEditMode
+        ? null
+        : this.hitRascal(world.x, world.y);
     this.hoverEntity = this.decorateMode && !this.dragEntity
       ? this.hitDecorateEntity(world.x, world.y)
       : null;
+
+    if (this.layoutDrag) {
+      const n = this.worldToNorm(world.x, world.y);
+      this.moveLayoutPin(this.layoutDrag.kind, this.layoutDrag.id, n.x, n.y);
+      return;
+    }
 
     if (this.heldRascal) {
       const raw = this.worldToNorm(world.x, world.y);
@@ -674,7 +815,7 @@ export class GameEngine {
       this.dragEntity.footY = n.y;
       return;
     }
-    if (this.dragging && !this.dragEntity && !this.heldRascal) {
+    if (this.dragging && !this.dragEntity && !this.heldRascal && !this.layoutDrag) {
       const dx = sx - this.dragLast.x;
       const dy = sy - this.dragLast.y;
       this.camX -= dx / this.zoom;
@@ -687,6 +828,11 @@ export class GameEngine {
   private onPointerUp = () => {
     this.dragging = false;
     this.canvas.classList.remove("dragging");
+
+    if (this.layoutDrag) {
+      this.layoutDrag = null;
+      this.emit();
+    }
 
     if (this.dragEntity) {
       const clamped = this.clampOnIsland(this.dragEntity.x, this.dragEntity.y);
@@ -1161,6 +1307,14 @@ export class GameEngine {
       return;
     }
 
+    // Plant feet dead-center on the workstation / plot
+    r.x = prop.x;
+    r.y = prop.y;
+    r.target = null;
+    r.pathQueue = [];
+    r.vx = 0;
+    r.vy = 0;
+
     if (r.task === "farm" && prop.interact === "soil") {
       r.state = "CHORE";
       r.taskStep = 0;
@@ -1354,6 +1508,16 @@ export class GameEngine {
     }
 
     if (r.state === "CHORE") {
+      // Stay planted on the plot / workstation while working
+      if (r.interactWith) {
+        const ent = this.entities.find((e) => e.id === r.interactWith);
+        if (ent) {
+          r.x = ent.x;
+          r.y = ent.y;
+        }
+      }
+      r.vx = 0;
+      r.vy = 0;
       this.advanceChore(r, dt);
       return;
     }
@@ -1637,6 +1801,8 @@ export class GameEngine {
       }
     }
 
+    if (this.layoutEditMode) this.drawLayoutOverlay();
+
     ctx.restore();
 
     // Soft night wash — keep daytime vibrant (min brightness ≥ 0.88)
@@ -1645,6 +1811,78 @@ export class GameEngine {
       ctx.fillStyle = `rgba(12, 18, 48, ${maxDim * night})`;
       ctx.fillRect(0, 0, w, h);
     }
+  }
+
+  /** Debug overlay: plots (amber), clearings (teal), road nodes (gold) + edges. */
+  private drawLayoutOverlay() {
+    const ctx = this.ctx;
+    const nodes = getNodes();
+
+    ctx.lineWidth = 3 / Math.max(0.01, this.zoom);
+    ctx.strokeStyle = "rgba(224,180,74,0.55)";
+    for (const [aId, bId] of getEdges()) {
+      const a = nodes[aId];
+      const b = nodes[bId];
+      if (!a || !b) continue;
+      const pa = landToScreen(a.x, a.y, this.landX, this.landY, this.landW, this.landH);
+      const pb = landToScreen(b.x, b.y, this.landX, this.landY, this.landW, this.landH);
+      ctx.beginPath();
+      ctx.moveTo(pa.x, pa.y);
+      ctx.lineTo(pb.x, pb.y);
+      ctx.stroke();
+    }
+
+    for (const c of getClearings()) {
+      const p = landToScreen(c.x, c.y, this.landX, this.landY, this.landW, this.landH);
+      const rx = c.r * this.landW;
+      const ry = c.r * this.landH;
+      ctx.strokeStyle = "rgba(90,210,190,0.7)";
+      ctx.fillStyle = "rgba(90,210,190,0.12)";
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      this.drawPin(p.x, p.y, "#5ad2be", c.id);
+    }
+
+    for (const plot of getPlots()) {
+      const p = landToScreen(plot.x, plot.y, this.landX, this.landY, this.landW, this.landH);
+      const hw = 0.045 * this.landW;
+      const hh = 0.035 * this.landH;
+      ctx.strokeStyle = "rgba(232,160,70,0.9)";
+      ctx.fillStyle = "rgba(232,160,70,0.18)";
+      ctx.fillRect(p.x - hw, p.y - hh, hw * 2, hh * 2);
+      ctx.strokeRect(p.x - hw, p.y - hh, hw * 2, hh * 2);
+      this.drawPin(p.x, p.y, "#e8a046", plot.id);
+    }
+
+    for (const [id, pos] of Object.entries(nodes)) {
+      if (id.startsWith("plot_") || id.startsWith("clear_")) continue;
+      const p = landToScreen(pos.x, pos.y, this.landX, this.landY, this.landW, this.landH);
+      const color =
+        id === "portal_left" || id === "portal_right"
+          ? "#e07a6a"
+          : id.startsWith("bridge")
+            ? "#9ec5ff"
+            : "#e0b44a";
+      this.drawPin(p.x, p.y, color, id);
+    }
+  }
+
+  private drawPin(x: number, y: number, color: string, label: string) {
+    const ctx = this.ctx;
+    const r = 7 / Math.max(0.5, Math.min(1.2, this.zoom));
+    ctx.fillStyle = color;
+    ctx.strokeStyle = "#12141a";
+    ctx.lineWidth = 2 / Math.max(0.01, this.zoom);
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "rgba(18,20,26,0.75)";
+    ctx.font = `${11 / Math.max(0.6, Math.min(1.2, this.zoom))}px Segoe UI`;
+    ctx.textAlign = "center";
+    ctx.fillText(label, x, y - r - 4);
   }
 
   private drawEntity(e: WorldEntity, night: number) {
@@ -1709,17 +1947,17 @@ export class GameEngine {
     const scaleY = r.squash;
     const scaleX = 2 - r.squash;
     const depth = depthScaleAtY(r.y, this.save.activeIsland);
-    const size = 80 * depth;
+    const size = GameEngine.RASCAL_SIZE * depth;
     const footOffset = size * SPRITE_ANCHOR_Y;
 
-    // Soft oval contact shadow under feet
-    this.ctx.fillStyle = "rgba(0,0,0,0.28)";
+    // Soft dark oval contact shadow directly under feet
+    this.ctx.fillStyle = "rgba(0,0,0,0.32)";
     this.ctx.beginPath();
     this.ctx.ellipse(
       p.x,
       p.y + 2,
-      size * 0.34,
-      Math.max(3.5, 4.2 * depth),
+      size * 0.36,
+      Math.max(4, 5 * depth),
       0,
       0,
       Math.PI * 2

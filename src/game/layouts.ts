@@ -1,6 +1,6 @@
 import type { IslandId, WorldEntity } from "./types";
 import type assetManifest from "@/data/assetManifest.json";
-import { SHARED_MAP, usesSharedMapGraph } from "./mapGraph";
+import { getClearings, getPlots, usesSharedMapGraph } from "./mapGraph";
 
 type Manifest = typeof assetManifest;
 
@@ -141,7 +141,7 @@ export function buildIslandEntities(
   if (!usesSharedMapGraph(island)) return [];
 
   const entities: WorldEntity[] = [];
-  SHARED_MAP.plots.forEach((plot, i) => {
+  getPlots().forEach((plot, i) => {
     const id = `${island}-soil-${plot.id}`;
     const pos = layoutOverrides[id] ?? { x: plot.x, y: plot.y };
     entities.push({
@@ -155,6 +155,38 @@ export function buildIslandEntities(
       movable: true,
       interact: "soil",
       cropStage: 1,
+    });
+  });
+
+  // Starter workstations in open clearings (wash / sleep / kitchen)
+  const clears = getClearings();
+  const starters: {
+    id: string;
+    interact: "tub" | "bed" | "kitchen";
+    slot: number;
+    scale: number;
+  }[] = [
+    { id: "tub", interact: "tub", slot: 0, scale: 0.5 },
+    { id: "bed", interact: "bed", slot: 1, scale: 0.48 },
+    { id: "kitchen", interact: "kitchen", slot: 2, scale: 0.52 },
+  ];
+  starters.forEach((st, i) => {
+    const pad = clears[i] ?? clears[0];
+    if (!pad) return;
+    const id = `${island}-station-${st.id}`;
+    const pos = layoutOverrides[id] ?? { x: pad.x, y: pad.y };
+    const propId = pickProp(manifest, tiers.propTier, st.slot) ?? pickProp(manifest, 1, st.slot);
+    if (!propId) return;
+    entities.push({
+      id,
+      kind: "prop",
+      spriteId: propId,
+      x: pos.x,
+      y: pos.y,
+      scale: st.scale * ENTITY_SCALE,
+      footY: pos.y,
+      movable: true,
+      interact: st.interact,
     });
   });
   return entities;

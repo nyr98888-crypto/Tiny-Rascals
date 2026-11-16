@@ -93,6 +93,21 @@ export function Hud({ engine }: { engine: GameEngine | null }) {
             </button>
           )}
           <button onClick={() => setUpgradesOpen(true)}>Upgrades</button>
+          <button
+            className={engine.layoutEditMode ? "active" : ""}
+            title="Drag plot, clearing, and road pins over the live map"
+            onClick={() => engine.toggleLayoutEdit()}
+          >
+            Edit Plots & Roads
+          </button>
+          {engine.layoutEditMode && (
+            <button
+              title="Write pins to src/data/world-layouts.json"
+              onClick={() => void engine.saveWorldLayout()}
+            >
+              Save Layout
+            </button>
+          )}
           <button className={dexOpen ? "active" : ""} onClick={() => setDexOpen(true)}>
             Rascal Dex
           </button>
@@ -128,9 +143,11 @@ export function Hud({ engine }: { engine: GameEngine | null }) {
           })}
         </div>
         <div className="hint panel">
-          {engine.decorateMode
-            ? "Decorate: drag buildings, stations, crops & props · dock stays fixed · scroll to zoom"
-            : `Drag to pan · scroll to zoom · pick up Rascals · ${prog.buildingTier}/${prog.propTier}/${prog.cropTier}/${prog.clutterTier} tiers`}
+          {engine.layoutEditMode
+            ? `Edit Plots & Roads: drag amber plots · teal clearings · gold road nodes · ${engine.layoutSaveStatus || "unsaved"}`
+            : engine.decorateMode
+              ? "Decorate: drag buildings, stations, crops & props · dock stays fixed · scroll to zoom"
+              : `Drag to pan · scroll to zoom · pick up Rascals · ${prog.buildingTier}/${prog.propTier}/${prog.cropTier}/${prog.clutterTier} tiers`}
         </div>
       </div>
 

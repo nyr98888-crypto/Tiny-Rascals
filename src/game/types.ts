@@ -149,9 +149,9 @@ export const ISLAND_ORDER: IslandId[] = [
 ];
 
 export const ISLAND_LABELS: Record<IslandId, string> = {
-  retro: "A4",
-  lagoon: "A2",
+  retro: "A4 Ruins",
+  lagoon: "A2 Lagoon",
   meadow: "A1 Meadow",
-  snack: "A3",
-  hollow: "A5",
+  snack: "A3 Orchard",
+  hollow: "A5 Hollow",
 };

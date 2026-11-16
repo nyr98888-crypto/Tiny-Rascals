@@ -1,15 +1,7 @@
 import type { IslandId, Vec2 } from "./types";
+import { getWorldLayout, type ClearingDef, type PlotDef } from "./worldLayouts";
 
-/** Percent (0–100) → normalized 0–1. */
-export function pct(x: number, y: number): Vec2 {
-  return { x: x / 100, y: y / 100 };
-}
-
-/**
- * Area codes (UI) ↔ internal island ids.
- * a1 = Meadow (existing start — land-meadow untouched).
- * a2–a5 = new maps in public/world/.
- */
+/** Area codes (UI) ↔ internal island ids. */
 export const AREA_CODE: Record<IslandId, "a1" | "a2" | "a3" | "a4" | "a5"> = {
   meadow: "a1",
   lagoon: "a2",
@@ -35,22 +27,21 @@ export const AREA_LINKS: Record<
   IslandId,
   { left: IslandId | null; right: IslandId | null }
 > = {
-  retro: { left: null, right: "lagoon" }, // a4
-  lagoon: { left: "retro", right: "meadow" }, // a2
-  meadow: { left: "lagoon", right: "snack" }, // a1
-  snack: { left: "meadow", right: "hollow" }, // a3
-  hollow: { left: "snack", right: null }, // a5
+  retro: { left: null, right: "lagoon" },
+  lagoon: { left: "retro", right: "meadow" },
+  meadow: { left: "lagoon", right: "snack" },
+  snack: { left: "meadow", right: "hollow" },
+  hollow: { left: "snack", right: null },
 };
 
-/** Primary resource earned by chores on each area. */
 export type AreaResource = "wood" | "berries" | "crops" | "tokens" | "gems";
 
 export const AREA_RESOURCE: Record<IslandId, AreaResource> = {
-  meadow: "wood", // a1
-  lagoon: "berries", // a2
-  snack: "crops", // a3 Treats/Meals
-  retro: "tokens", // a4 Tokens/Stone
-  hollow: "gems", // a5
+  meadow: "wood",
+  lagoon: "berries",
+  snack: "crops",
+  retro: "tokens",
+  hollow: "gems",
 };
 
 export const RESOURCE_LABELS: Record<AreaResource, string> = {
@@ -61,63 +52,38 @@ export const RESOURCE_LABELS: Record<AreaResource, string> = {
   gems: "Gems",
 };
 
-/**
- * Shared 16:9 road/plot graph (a1–a5). Aligned to land-meadow / matching layouts.
- */
+/** Live shared layout (plots / clearings / nodes) — editable via calibrator. */
+export function getPlots(): readonly PlotDef[] {
+  return getWorldLayout().shared.plots;
+}
+
+export function getClearings(): readonly ClearingDef[] {
+  return getWorldLayout().shared.clearings;
+}
+
+export function getNodes(): Record<string, Vec2> {
+  return getWorldLayout().shared.nodes;
+}
+
+export function getEdges(): readonly [string, string][] {
+  return getWorldLayout().shared.edges as [string, string][];
+}
+
+/** Back-compat facade used across the engine. */
 export const SHARED_MAP = {
-  plots: [
-    { id: "plot-tl", ...pct(28, 40), label: "Top-Left" },
-    { id: "plot-bl", ...pct(28, 76), label: "Bottom-Left" },
-    { id: "plot-ct", ...pct(53, 25), label: "Central-Top" },
-    { id: "plot-cr", ...pct(54, 48), label: "Central-Right" },
-    { id: "plot-br", ...pct(66, 86), label: "Bottom-Right" },
-  ] as const,
+  get plots() {
+    return getPlots();
+  },
+  get clearings() {
+    return getClearings();
+  },
+  get nodes() {
+    return getNodes() as Record<MapNodeId, Vec2>;
+  },
+};
 
-  clearings: [
-    { id: "clear-cross", ...pct(52, 50), r: 0.09, label: "Crossroads clearing" },
-    { id: "clear-south", ...pct(45, 70), r: 0.09, label: "South clearing" },
-    { id: "clear-east", ...pct(85, 45), r: 0.06, label: "Right-bank clearing" },
-  ] as const,
+export type MapNodeId = string;
 
-  nodes: {
-    portal_left: pct(0, 48),
-    crossroads: pct(45, 52),
-    north_branch: pct(35, 20),
-    south_branch: pct(83, 100),
-    bridge_w: pct(63, 43),
-    bridge_e: pct(76, 34),
-    portal_right: pct(100, 12),
-    plot_tl: pct(28, 40),
-    plot_bl: pct(28, 76),
-    plot_ct: pct(53, 25),
-    plot_cr: pct(54, 48),
-    plot_br: pct(66, 86),
-    clear_cross: pct(52, 50),
-    clear_south: pct(45, 70),
-    clear_east: pct(85, 45),
-  } as const,
-} as const;
-
-export type MapNodeId = keyof typeof SHARED_MAP.nodes;
-
-export const ROAD_EDGES: readonly [MapNodeId, MapNodeId][] = [
-  ["portal_left", "crossroads"],
-  ["crossroads", "north_branch"],
-  ["crossroads", "south_branch"],
-  ["crossroads", "bridge_w"],
-  ["bridge_w", "bridge_e"],
-  ["bridge_e", "portal_right"],
-  ["crossroads", "plot_tl"],
-  ["crossroads", "plot_bl"],
-  ["north_branch", "plot_ct"],
-  ["bridge_w", "plot_cr"],
-  ["south_branch", "plot_br"],
-  ["crossroads", "clear_cross"],
-  ["crossroads", "clear_south"],
-  ["bridge_e", "clear_east"],
-];
-
-/** All five chain areas share the road graph. */
 export function usesSharedMapGraph(_island: IslandId): boolean {
   return true;
 }
@@ -131,33 +97,25 @@ export function portalDestination(
   return AREA_LINKS[island][side];
 }
 
-/** Which portal side (if any) the feet are near. */
 export function portalSideAt(
   island: IslandId,
   x: number,
   y: number,
   radius = 0.045
 ): PortalSide | null {
-  const left = SHARED_MAP.nodes.portal_left;
-  const right = SHARED_MAP.nodes.portal_right;
+  const nodes = getNodes();
+  const left = nodes.portal_left;
+  const right = nodes.portal_right;
+  if (!left || !right) return null;
   const dL = Math.hypot(x - left.x, y - left.y);
   const dR = Math.hypot(x - right.x, y - right.y);
   if (dL <= radius && AREA_LINKS[island].left) return "left";
   if (dR <= radius && AREA_LINKS[island].right) return "right";
-  // Blocked ends: still "near" but no destination
-  if (dL <= radius && !AREA_LINKS[island].left) return null;
-  if (dR <= radius && !AREA_LINKS[island].right) return null;
   return null;
 }
 
 export function nearOpenPortal(island: IslandId, x: number, y: number): boolean {
   return portalSideAt(island, x, y) !== null;
-}
-
-/** Enter node when arriving from a side of the destination. */
-export function enterNodeForArrival(fromSide: PortalSide): MapNodeId {
-  // Arriving via our left means we came from neighbor's right → enter at left
-  return fromSide === "left" ? "portal_left" : "portal_right";
 }
 
 function dist2(a: Vec2, b: Vec2) {
@@ -179,11 +137,13 @@ function closestOnSegment(p: Vec2, a: Vec2, b: Vec2): { point: Vec2; d2: number 
 
 export function snapToRoad(x: number, y: number): Vec2 {
   const p = { x, y };
+  const nodes = getNodes();
   let best = p;
   let bestD = Infinity;
-  for (const [aId, bId] of ROAD_EDGES) {
-    const a = SHARED_MAP.nodes[aId];
-    const b = SHARED_MAP.nodes[bId];
+  for (const [aId, bId] of getEdges()) {
+    const a = nodes[aId];
+    const b = nodes[bId];
+    if (!a || !b) continue;
     const hit = closestOnSegment(p, a, b);
     if (hit.d2 < bestD) {
       bestD = hit.d2;
@@ -195,9 +155,10 @@ export function snapToRoad(x: number, y: number): Vec2 {
 
 export function nearestNode(x: number, y: number): MapNodeId {
   const p = { x, y };
+  const nodes = getNodes();
   let best: MapNodeId = "crossroads";
   let bestD = Infinity;
-  for (const [id, pos] of Object.entries(SHARED_MAP.nodes) as [MapNodeId, Vec2][]) {
+  for (const [id, pos] of Object.entries(nodes)) {
     const d = dist2(p, pos);
     if (d < bestD) {
       bestD = d;
@@ -210,7 +171,7 @@ export function nearestNode(x: number, y: number): MapNodeId {
 export function pathNodes(from: MapNodeId, to: MapNodeId): MapNodeId[] {
   if (from === to) return [from];
   const adj = new Map<MapNodeId, MapNodeId[]>();
-  for (const [a, b] of ROAD_EDGES) {
+  for (const [a, b] of getEdges()) {
     if (!adj.has(a)) adj.set(a, []);
     if (!adj.has(b)) adj.set(b, []);
     adj.get(a)!.push(b);
@@ -239,16 +200,17 @@ export function pathNodes(from: MapNodeId, to: MapNodeId): MapNodeId[] {
 }
 
 export function roadPath(sx: number, sy: number, tx: number, ty: number): Vec2[] {
+  const nodes = getNodes();
   const start = nearestNode(sx, sy);
   const end = nearestNode(tx, ty);
   const ids = pathNodes(start, end);
-  const pts = ids.map((id) => ({ ...SHARED_MAP.nodes[id] }));
+  const pts = ids.map((id) => ({ ...(nodes[id] ?? { x: tx, y: ty }) }));
   if (pts.length) pts[pts.length - 1] = { x: tx, y: ty };
   return pts;
 }
 
 export function randomRoadTarget(): Vec2 {
-  const pool: MapNodeId[] = [
+  const pool = [
     "crossroads",
     "north_branch",
     "south_branch",
@@ -263,20 +225,20 @@ export function randomRoadTarget(): Vec2 {
     "clear_south",
     "clear_east",
   ];
+  const nodes = getNodes();
   const id = pool[Math.floor(Math.random() * pool.length)];
-  const n = SHARED_MAP.nodes[id];
+  const n = nodes[id] ?? nodes.crossroads;
   return {
     x: n.x + (Math.random() - 0.5) * 0.02,
     y: n.y + (Math.random() - 0.5) * 0.02,
   };
 }
 
-/** Soft walk corridor: roads + plot/clearing pads only. */
 export function clampToRoadNetwork(x: number, y: number): Vec2 {
-  for (const c of SHARED_MAP.clearings) {
+  for (const c of getClearings()) {
     if (Math.hypot(x - c.x, y - c.y) <= c.r) return { x, y };
   }
-  for (const p of SHARED_MAP.plots) {
+  for (const p of getPlots()) {
     if (Math.hypot(x - p.x, y - p.y) <= 0.055) return { x, y };
   }
   return snapToRoad(x, y);
