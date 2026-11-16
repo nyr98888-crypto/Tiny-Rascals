@@ -32,12 +32,11 @@ import {
   WORLD_H,
   PLOT_W,
   PLOT_H,
-  SEAM_OVERLAP,
-  PLOT_CELLS,
   getPlotCell,
   plotAtGlobal,
   localToGlobal,
 } from "./worldGrid";
+import { buildContinuousTerrain } from "./terrain";
 import {
   exportWorldLayout,
   getWorldLayout,
@@ -128,6 +127,8 @@ export class GameEngine {
   landH = WORLD_H;
   landX = 0;
   landY = 0;
+  /** Baked Meadow-style continuous ground (no boxed biome plates). */
+  private terrainCanvas: HTMLCanvasElement | null = null;
 
   dragging = false;
   dragLast = { x: 0, y: 0 };
@@ -141,10 +142,9 @@ export class GameEngine {
   layoutSaveStatus = "";
   dragEntity: WorldEntity | null = null;
 
-  /** Rascal draw size in world px (other biomes). */
-  static RASCAL_SIZE = 128;
-  /** a1 full-meadow overview — sized to painted trees / path. */
-  static MEADOW_RASCAL_SIZE = 210;
+  /** Rascal draw size in world px at one-plot (1600×900) Meadow scale. */
+  static RASCAL_SIZE = 118;
+  static MEADOW_RASCAL_SIZE = 118;
   /** Normalized grab offset so entities don't jump on pointer-down. */
   grabOffset = { dx: 0, dy: 0 };
   hoverEntity: WorldEntity | null = null;
@@ -260,14 +260,19 @@ export class GameEngine {
     window.addEventListener("resize", this.resize);
   }
 
-  /** Keep every area land texture warm in the cache. */
+  /** Meadow texture is the shared top-down ground style (not 6 boxed plates). */
   private async preloadAllLands() {
-    const srcs = ISLAND_ORDER.map((id) => manifest.lands[id].src);
-    await this.textures.loadMany(srcs);
+    await this.textures.loadMany([manifest.lands.meadow.src]);
+    this.rebuildTerrain();
   }
 
   private allLandSrcs(): Set<string> {
-    return new Set(ISLAND_ORDER.map((id) => manifest.lands[id].src));
+    return new Set([manifest.lands.meadow.src]);
+  }
+
+  private rebuildTerrain() {
+    const meadow = this.textures.get(manifest.lands.meadow.src) ?? null;
+    this.terrainCanvas = buildContinuousTerrain(meadow);
   }
 
   stop() {
@@ -287,9 +292,7 @@ export class GameEngine {
   };
 
   private async loadActiveTextures() {
-    const island = this.save.activeIsland;
-    const land = manifest.lands[island];
-    // Always retain all 5 land maps + active sprites (no black flash on switch)
+    // Meadow ground style + active sprites (boxed biome plates removed)
     const keep = this.allLandSrcs();
     const srcs = [...keep];
 
@@ -319,11 +322,12 @@ export class GameEngine {
     }
     await this.textures.loadMany(srcs);
     this.textures.disposeExcept(keep);
-    const landImg = this.textures.get(land.src);
-    this.landTexW = landImg?.naturalWidth || land.w;
-    this.landTexH = landImg?.naturalHeight || land.h;
+    const landImg = this.textures.get(manifest.lands.meadow.src);
+    this.landTexW = landImg?.naturalWidth || manifest.lands.meadow.w;
+    this.landTexH = landImg?.naturalHeight || manifest.lands.meadow.h;
     this.landW = WORLD_W;
     this.landH = WORLD_H;
+    this.rebuildTerrain();
     this.recomputeZoomLimits();
   }
 
@@ -495,44 +499,28 @@ export class GameEngine {
     this.emit();
   }
 
-  /**
-   * Cover zoom: map fills the viewport (may crop one axis).
-   */
-  private computeCoverZoom() {
+  /** One plot fills the viewport (Meadow sprite scale) — never show the whole grid. */
+  private computeOnePlotZoom() {
     const w = Math.max(320, this.canvas.clientWidth || 1280);
     const h = Math.max(240, this.canvas.clientHeight || 720);
-    return Math.max(
-      w / Math.max(1, this.landW),
-      h / Math.max(1, this.landH)
-    );
-  }
-
-  /** Default gameplay zoom: ~1.25 plots visible (not full-map overview). */
-  private computeGameplayZoom() {
-    const w = Math.max(320, this.canvas.clientWidth || 1280);
-    const h = Math.max(240, this.canvas.clientHeight || 720);
-    const zw = w / (PLOT_W * 1.25);
-    const zh = h / (PLOT_H * 1.25);
-    return Math.min(this.maxZoom, Math.max(this.minZoom, Math.max(zw, zh)));
+    return Math.max(w / PLOT_W, h / PLOT_H);
   }
 
   private recomputeZoomLimits() {
-    const fit = this.computeCoverZoom();
-    this.minZoom = fit;
-    const w = Math.max(320, this.canvas.clientWidth || 1280);
-    const h = Math.max(240, this.canvas.clientHeight || 720);
-    const onePlot = Math.max(w / PLOT_W, h / PLOT_H);
-    this.maxZoom = onePlot * 1.8;
-    this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom));
-    this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom));
+    const onePlot = this.computeOnePlotZoom();
+    // Lock floor to one-plot cover — cannot zoom out to multi-plot CCTV view
+    this.minZoom = onePlot;
+    this.maxZoom = onePlot * 2.2;
+    this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || onePlot));
+    this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || onePlot));
   }
 
-  /** Apply default framing once land size is known (first load / island switch). */
+  /** Apply default framing: one plot fills view, camera centered on active plot. */
   frameIsland() {
     this.recomputeZoomLimits();
-    const gameplay = this.computeGameplayZoom();
-    this.targetZoom = gameplay;
-    this.zoom = gameplay;
+    const onePlot = this.computeOnePlotZoom();
+    this.targetZoom = onePlot;
+    this.zoom = onePlot;
     this.landX = -this.landW / 2;
     this.landY = -this.landH / 2;
     const cell = getPlotCell(this.save.activeIsland);
@@ -1675,19 +1663,19 @@ export class GameEngine {
     ctx.clearRect(0, 0, w, h);
 
     const night = this.nightFactor();
-    const overlap = SEAM_OVERLAP;
 
     ctx.save();
     ctx.translate(w / 2, h / 2);
     ctx.scale(this.zoom, this.zoom);
     ctx.translate(-this.camX, -this.camY);
 
-    for (const cell of PLOT_CELLS) {
-      const landImg = this.textures.get(manifest.lands[cell.id].src);
-      if (!landImg) continue;
-      const dx = this.landX + cell.originX - overlap / 2;
-      const dy = this.landY + cell.originY - overlap / 2;
-      ctx.drawImage(landImg, dx, dy, PLOT_W + overlap, PLOT_H + overlap);
+    // One continuous Meadow-style ranch ground (no boxed biome illustrations)
+    if (!this.terrainCanvas) this.rebuildTerrain();
+    if (this.terrainCanvas) {
+      ctx.drawImage(this.terrainCanvas, this.landX, this.landY, this.landW, this.landH);
+    } else {
+      ctx.fillStyle = "#7daf5c";
+      ctx.fillRect(this.landX, this.landY, this.landW, this.landH);
     }
 
     // Y-sorted draw list

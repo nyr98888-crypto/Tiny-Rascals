@@ -248,7 +248,115 @@ export function buildIslandEntities(
   return entities;
 }
 
-/** All six plots' entities in one continuous world list. */
+/** Trees / rocks / flowers / path markers that hide plot seams. */
+function buildSeamDecor(): WorldEntity[] {
+  const decor: WorldEntity[] = [];
+  // Vertical seams between columns (x = 1/3, 2/3)
+  const vSeams = [1 / 3, 2 / 3];
+  const hSeams = [1 / 2];
+  let n = 0;
+  for (const sx of vSeams) {
+    for (let i = 0; i < 8; i++) {
+      const y = 0.08 + (i / 7) * 0.84;
+      const jitter = (i % 2 === 0 ? -0.012 : 0.012);
+      const tree = i % 3 !== 2;
+      decor.push({
+        id: `seam-v-${n++}`,
+        kind: tree ? "prop" : "clutter",
+        spriteId: tree
+          ? i % 2 === 0
+            ? "prop_wood_tree"
+            : "prop_berry_bush"
+          : i % 2 === 0
+            ? "clutter_flowers"
+            : "clutter_leaves",
+        x: sx + jitter,
+        y,
+        scale: (tree ? 0.72 : 0.45) * MEADOW_ENTITY_SCALE,
+        footY: y,
+        movable: false,
+      });
+    }
+  }
+  for (const sy of hSeams) {
+    for (let i = 0; i < 10; i++) {
+      const x = 0.06 + (i / 9) * 0.88;
+      const jitter = (i % 2 === 0 ? -0.01 : 0.01);
+      decor.push({
+        id: `seam-h-${n++}`,
+        kind: "clutter",
+        spriteId: i % 3 === 0 ? "clutter_fence" : i % 3 === 1 ? "clutter_flowers" : "clutter_leaves",
+        x,
+        y: sy + jitter,
+        scale: 0.42 * MEADOW_ENTITY_SCALE,
+        footY: sy + jitter,
+        movable: false,
+      });
+    }
+  }
+  return decor;
+}
+
+/** Per-biome flavor props (same Meadow sprite language — no boxed plates). */
+function buildBiomeFlavor(
+  island: IslandId,
+  layoutOverrides: Record<string, { x: number; y: number }>
+): WorldEntity[] {
+  if (island === "meadow") return [];
+  const kits: Record<
+    Exclude<IslandId, "meadow">,
+    { key: string; spriteId: string; interact?: WorldEntity["interact"]; x: number; y: number; scale: number; kind: WorldEntity["kind"] }[]
+  > = {
+    lagoon: [
+      { key: "treeA", spriteId: "prop_wood_tree", interact: "tree", x: 0.22, y: 0.35, scale: 0.9, kind: "prop" },
+      { key: "bush", spriteId: "prop_berry_bush", interact: "bush", x: 0.7, y: 0.4, scale: 0.8, kind: "prop" },
+      { key: "tub", spriteId: "prop_wash_tub", interact: "tub", x: 0.4, y: 0.62, scale: 0.75, kind: "prop" },
+      { key: "flowers", spriteId: "clutter_flowers", x: 0.55, y: 0.3, scale: 0.5, kind: "clutter" },
+    ],
+    snack: [
+      { key: "treeA", spriteId: "prop_wood_tree", interact: "tree", x: 0.18, y: 0.42, scale: 0.95, kind: "prop" },
+      { key: "bush", spriteId: "prop_berry_bush", interact: "bush", x: 0.65, y: 0.38, scale: 0.85, kind: "prop" },
+      { key: "picnic", spriteId: "clutter_picnic", interact: "picnic", x: 0.48, y: 0.58, scale: 0.7, kind: "clutter" },
+      { key: "flowers", spriteId: "clutter_flowers", x: 0.78, y: 0.55, scale: 0.48, kind: "clutter" },
+    ],
+    retro: [
+      { key: "treeA", spriteId: "prop_wood_tree", interact: "tree", x: 0.25, y: 0.4, scale: 0.88, kind: "prop" },
+      { key: "camp", spriteId: "clutter_campfire", interact: "campfire", x: 0.5, y: 0.55, scale: 0.7, kind: "clutter" },
+      { key: "fence", spriteId: "clutter_fence", x: 0.7, y: 0.45, scale: 0.55, kind: "clutter" },
+      { key: "leaves", spriteId: "clutter_leaves", x: 0.35, y: 0.65, scale: 0.5, kind: "clutter" },
+    ],
+    hollow: [
+      { key: "treeA", spriteId: "prop_wood_tree", interact: "tree", x: 0.3, y: 0.36, scale: 1.0, kind: "prop" },
+      { key: "crystal", spriteId: "prop_t3_crystal_bush", interact: "bush", x: 0.68, y: 0.48, scale: 0.8, kind: "prop" },
+      { key: "lantern", spriteId: "clutter_lantern", x: 0.45, y: 0.6, scale: 0.55, kind: "clutter" },
+      { key: "leaves", spriteId: "clutter_leaves", x: 0.2, y: 0.58, scale: 0.5, kind: "clutter" },
+    ],
+    shore: [
+      { key: "treeA", spriteId: "prop_wood_tree", interact: "tree", x: 0.2, y: 0.4, scale: 0.85, kind: "prop" },
+      { key: "tub", spriteId: "prop_wash_tub", interact: "tub", x: 0.55, y: 0.55, scale: 0.75, kind: "prop" },
+      { key: "flowers", spriteId: "clutter_flowers", x: 0.72, y: 0.42, scale: 0.5, kind: "clutter" },
+      { key: "tent", spriteId: "clutter_t3_pavilion", interact: "bed", x: 0.35, y: 0.65, scale: 0.8, kind: "clutter" },
+    ],
+  };
+  const list = kits[island as Exclude<IslandId, "meadow">] ?? [];
+  return list.map((p) => {
+    const id = `${island}-flavor-${p.key}`;
+    const pos = toGlobalPos(island, p.x, p.y, id, layoutOverrides);
+    return {
+      id,
+      kind: p.kind,
+      spriteId: p.spriteId,
+      x: pos.x,
+      y: pos.y,
+      scale: p.scale * MEADOW_ENTITY_SCALE,
+      footY: pos.y,
+      movable: true,
+      interact: p.interact,
+    };
+  });
+}
+
+/** All six plots' entities + seam decor in one continuous world list. */
 export function buildWorldEntities(
   manifest: Manifest,
   islands: Record<
@@ -267,7 +375,9 @@ export function buildWorldEntities(
     out.push(
       ...buildIslandEntities(manifest, id, islands[id], layoutOverrides[id] ?? {})
     );
+    out.push(...buildBiomeFlavor(id, layoutOverrides[id] ?? {}));
   }
+  out.push(...buildSeamDecor());
   return out;
 }
 

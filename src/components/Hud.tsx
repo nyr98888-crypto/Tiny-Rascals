@@ -150,7 +150,7 @@ export function Hud({ engine }: { engine: GameEngine | null }) {
             ? `Edit Plots & Roads: drag amber plots · teal clearings · gold road nodes · ${engine.layoutSaveStatus || "unsaved"}`
             : engine.decorateMode
               ? "Decorate: drag props anywhere on the ranch · scroll to zoom"
-              : "Drag / WASD to pan · scroll to zoom · plot bar glides camera · click a Rascal to follow"}
+              : "One plot view · drag / WASD to pan the ranch · scroll zooms in · plot bar glides"}
         </div>
       </div>
 
