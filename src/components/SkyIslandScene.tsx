@@ -1,92 +1,146 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { IdleDragon } from "@/game/IdleDragon";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  computeWorldBounds,
+  islandHeight,
+  islandRect,
+  resolveActiveBridges,
+  unlockedIslands,
+  type IslandDef,
+} from "@/data/worldMap";
+import { RtsEngine, type RtsHudState } from "@/game/RtsEngine";
 import { WoodenBridges } from "./WoodenBridges";
 
-const ISLAND_SRC = "/world/island_plate.png";
 const SKY_SRC = "/world/sky_bg.png";
 
-/** Center clearing of the middle island plate (viewport coords). */
-function centerClearingAnchor(centerIsland: HTMLImageElement): { x: number; y: number } {
-  const r = centerIsland.getBoundingClientRect();
-  // Dirt hub sits near the visual center of the grassy plateau
-  return {
-    x: r.left + r.width * 0.5,
-    y: r.top + r.height * 0.42,
-  };
-}
+const ROLE_CLASS: Record<IslandDef["role"], string> = {
+  hub: "role-hub",
+  farm: "role-farm",
+  quarry: "role-quarry",
+  magic: "role-magic",
+  harbor: "role-harbor",
+};
 
 export function SkyIslandScene() {
+  const viewportRef = useRef<HTMLElement>(null);
+  const worldRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const centerRef = useRef<HTMLImageElement>(null);
-  const dragonRef = useRef<IdleDragon | null>(null);
+  const minimapRef = useRef<HTMLCanvasElement>(null);
+  const engineRef = useRef<RtsEngine | null>(null);
+
+  const [hud, setHud] = useState<RtsHudState>({
+    follow: false,
+    islands: unlockedIslands(),
+    canExpand: true,
+  });
+
+  const bounds = useMemo(() => computeWorldBounds(hud.islands), [hud.islands]);
+  const bridges = useMemo(() => resolveActiveBridges(), [hud.islands]);
 
   useEffect(() => {
+    const viewport = viewportRef.current;
+    const world = worldRef.current;
     const canvas = canvasRef.current;
-    const center = centerRef.current;
-    if (!canvas || !center) return;
+    const minimap = minimapRef.current;
+    if (!viewport || !world || !canvas || !minimap) return;
 
-    const dragon = new IdleDragon(canvas);
-    dragonRef.current = dragon;
+    const engine = new RtsEngine(viewport, world, canvas, minimap);
+    engineRef.current = engine;
+    const off = engine.onHud(setHud);
+    void engine.start().catch((err) => console.error(err));
 
-    const place = () => {
-      const anchor = centerClearingAnchor(center);
-      dragon.setAnchor(anchor.x, anchor.y);
-      dragon.resize();
-    };
-
-    const onReady = () => {
-      place();
-      void dragon.start(centerClearingAnchor(center)).catch((err) => console.error(err));
-    };
-
-    if (center.complete && center.naturalWidth > 0) onReady();
-    else center.addEventListener("load", onReady, { once: true });
-
-    window.addEventListener("resize", place);
     return () => {
-      window.removeEventListener("resize", place);
-      dragon.stop();
-      dragonRef.current = null;
+      off();
+      engine.stop();
+      engineRef.current = null;
     };
   }, []);
 
   return (
-    <main id="app-root" className="sky-island">
-      <img
-        className="sky-backdrop"
-        src={SKY_SRC}
-        alt=""
-        draggable={false}
-        aria-hidden
-      />
+    <main id="app-root" className="rts-root">
+      <section
+        ref={viewportRef}
+        className="rts-viewport"
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        <img className="sky-parallax" src={SKY_SRC} alt="" draggable={false} aria-hidden />
 
-      <WoodenBridges />
+        <div
+          ref={worldRef}
+          className="rts-world"
+          style={{
+            width: bounds.worldWidth,
+            height: bounds.worldHeight,
+          }}
+        >
+          <WoodenBridges bridges={bridges} originX={bounds.minX} originY={bounds.minY} />
 
-      <img
-        className="island-plate left"
-        src={ISLAND_SRC}
-        alt="Left floating island"
-        draggable={false}
-      />
-      <img
-        ref={centerRef}
-        className="island-plate center"
-        src={ISLAND_SRC}
-        alt="Center main floating island"
-        draggable={false}
-      />
-      <img
-        className="island-plate right"
-        src={ISLAND_SRC}
-        alt="Right floating island"
-        draggable={false}
-      />
+          {hud.islands.map((island, i) => {
+            const r = islandRect(island);
+            return (
+              <img
+                key={island.id}
+                className={`island-plate ${ROLE_CLASS[island.role]} float-${i % 3}`}
+                src={island.sprite}
+                alt={island.name}
+                draggable={false}
+                style={{
+                  left: r.left - bounds.minX,
+                  top: r.top - bounds.minY,
+                  width: island.width,
+                  height: islandHeight(island),
+                }}
+              />
+            );
+          })}
+        </div>
 
-      <canvas ref={canvasRef} className="dragon-canvas" aria-hidden />
+        <canvas ref={canvasRef} className="rts-canvas" aria-hidden />
+      </section>
 
-      <div className="hint-bar">3-island sky layout · visual pass</div>
+      <aside className="rts-hud" aria-label="RTS controls">
+        <div className="minimap-wrap">
+          <canvas ref={minimapRef} className="rts-minimap" width={220} height={105} />
+          <span className="minimap-label">Realm</span>
+        </div>
+
+        <div className="hud-panel">
+          <div className="hud-title">Sky Realm</div>
+          <div className="island-chips">
+            {hud.islands.map((island) => (
+              <button
+                key={island.id}
+                type="button"
+                className={`island-chip ${ROLE_CLASS[island.role]}`}
+                onClick={() => engineRef.current?.focusIsland(island.id)}
+              >
+                {island.name}
+              </button>
+            ))}
+          </div>
+          <div className="hud-actions">
+            <button
+              type="button"
+              className={hud.follow ? "active" : undefined}
+              onClick={() => engineRef.current?.toggleFollow()}
+            >
+              {hud.follow ? "Following" : "Follow Dragon"}
+            </button>
+            <button
+              type="button"
+              className="expand-btn"
+              disabled={!hud.canExpand}
+              onClick={() => engineRef.current?.expandIsland()}
+            >
+              + Expand Island
+            </button>
+          </div>
+          <p className="hud-hint">
+            WASD / edges pan · Wheel zoom · Click move · Space+drag pan · Minimap jump
+          </p>
+        </div>
+      </aside>
     </main>
   );
 }

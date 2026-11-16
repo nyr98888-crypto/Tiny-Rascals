@@ -33,7 +33,7 @@ export const WORLD_PAD = 480; // sky margin around outermost islands
 
 export const MIN_ZOOM = 0.45;
 export const MAX_ZOOM = 1.4;
-export const DEFAULT_ZOOM = 1.0;
+export const DEFAULT_ZOOM = 0.62;
 export const DRAGON_SIZE = 120;
 export const EDGE_SCROLL_PX = 24;
 export const EDGE_SCROLL_SPEED = 900;
@@ -44,8 +44,8 @@ export const ISLANDS: IslandDef[] = [
     id: "farm",
     name: "Farm Meadow",
     role: "farm",
-    x: 780,
-    y: 1000,
+    x: 900,
+    y: 1100,
     width: DEFAULT_ISLAND_W,
     sprite: ISLAND_SPRITE,
     unlocked: true,
@@ -54,8 +54,8 @@ export const ISLANDS: IslandDef[] = [
     id: "hub",
     name: "Sanctuary Hub",
     role: "hub",
-    x: 2100,
-    y: 1000,
+    x: 2600,
+    y: 1100,
     width: DEFAULT_ISLAND_W,
     sprite: ISLAND_SPRITE,
     unlocked: true,
@@ -64,8 +64,8 @@ export const ISLANDS: IslandDef[] = [
     id: "quarry",
     name: "Crystal Quarry",
     role: "quarry",
-    x: 3420,
-    y: 1000,
+    x: 4300,
+    y: 1100,
     width: DEFAULT_ISLAND_W,
     sprite: ISLAND_SPRITE,
     unlocked: true,
@@ -74,8 +74,8 @@ export const ISLANDS: IslandDef[] = [
     id: "arcane",
     name: "Arcane Peak",
     role: "magic",
-    x: 2100,
-    y: 280,
+    x: 2600,
+    y: 200,
     width: 1200,
     sprite: ISLAND_SPRITE,
     unlocked: false,
@@ -84,8 +84,8 @@ export const ISLANDS: IslandDef[] = [
     id: "harbor",
     name: "South Harbor",
     role: "harbor",
-    x: 2100,
-    y: 1780,
+    x: 2600,
+    y: 2050,
     width: 1200,
     sprite: ISLAND_SPRITE,
     unlocked: false,
@@ -148,11 +148,11 @@ export function islandEdgeAnchor(island: IslandDef, toward: IslandDef) {
   const len = Math.hypot(dx, dy) || 1;
   const ux = dx / len;
   const uy = dy / len;
-  // Project onto ellipse rim
-  const ang = Math.atan2(uy * e.rx, ux * e.ry);
+  // Ellipse support point in direction (ux, uy)
+  const denom = Math.hypot(ux * e.ry, uy * e.rx) || 1;
   return {
-    x: e.cx + Math.cos(ang) * e.rx * 0.92,
-    y: e.cy + Math.sin(ang) * e.ry * 0.92,
+    x: e.cx + ((ux * e.rx * e.ry) / denom) * 0.94,
+    y: e.cy + ((uy * e.rx * e.ry) / denom) * 0.94,
   };
 }
 

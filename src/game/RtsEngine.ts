@@ -3,6 +3,7 @@ import {
   DRAGON_SIZE,
   EDGE_SCROLL_PX,
   EDGE_SCROLL_SPEED,
+  ISLANDS,
   MAX_ZOOM,
   MIN_ZOOM,
   hubIsland,
@@ -101,8 +102,8 @@ export class RtsEngine {
   private hudState(): RtsHudState {
     return {
       follow: this.follow,
-      islands: unlockedIslands(),
-      canExpand: unlockedIslands().length < 5, // registry length check via unlockNext
+      islands: unlockedIslands().map((i) => ({ ...i })),
+      canExpand: ISLANDS.some((i) => !i.unlocked),
     };
   }
 
@@ -111,7 +112,7 @@ export class RtsEngine {
     this.rebuildWorld();
     const hub = hubIsland();
     this.camX = hub.x;
-    this.camY = hub.y;
+    this.camY = hub.y - 40;
     const e = islandWalkEllipse(hub);
     this.dragon = { x: e.cx, y: e.cy };
     this.resize();
