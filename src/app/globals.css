@@ -32,74 +32,127 @@ body,
   overflow: hidden;
 }
 
-/**
- * Sky backdrop: stretch so only the upper ~65% of sky_bg (sky + clouds)
- * fills the viewport — ocean strip stays cropped below.
- */
+/** Full-screen high-altitude backdrop */
 .sky-backdrop {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-image: url("/arena/sky_bg.png");
-  background-repeat: no-repeat;
-  background-position: center top;
-  background-size: 100% calc(100% / 0.65);
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  object-position: center center;
   pointer-events: none;
+  user-select: none;
 }
 
-/**
- * Floating island: nearly full viewport with a few pixels of sky margin.
- */
-.island-plate {
+/** Bridges sit under island grass rims; ends overlap dirt-path exits */
+.bridge {
   position: absolute;
   z-index: 1;
-  left: 50%;
-  bottom: 6px;
-  width: 98vw;
-  height: 92vh;
-  transform: translateX(-50%);
+  width: 11vw;
+  height: auto;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.bridge-left {
+  left: 28.5vw;
+  bottom: 20vh;
+}
+
+.bridge-right {
+  right: 28.5vw;
+  bottom: 20vh;
+  transform: scaleX(-1);
+}
+
+.island-plate {
+  position: absolute;
+  z-index: 2;
+  height: auto;
   object-fit: contain;
   object-position: bottom center;
   pointer-events: none;
   user-select: none;
   -webkit-user-drag: none;
+  will-change: transform;
 }
 
-/** Playfield — JS syncs exact bounds to the island plate image. */
-.play-canvas {
+.island-plate.left {
+  left: 2.5vw;
+  bottom: 12vh;
+  width: 31vw;
+  animation: float-a 5.5s ease-in-out infinite;
+}
+
+.island-plate.center {
+  left: 31vw;
+  bottom: 4vh;
+  width: 38vw;
+  animation: float-b 6.2s ease-in-out infinite;
+  z-index: 3; /* slightly above side islands for depth */
+}
+
+.island-plate.right {
+  right: 2.5vw;
+  bottom: 12vh;
+  width: 31vw;
+  animation: float-c 5.8s ease-in-out infinite;
+}
+
+@keyframes float-a {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes float-b {
+  0%,
+  100% {
+    transform: translateY(-1px);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}
+
+@keyframes float-c {
+  0%,
+  100% {
+    transform: translateY(2px);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/** Full-viewport dragon layer above islands + bridges */
+.dragon-canvas {
   position: absolute;
-  z-index: 2;
-  left: 50%;
-  bottom: 6px;
-  width: 98vw;
-  height: 92vh;
-  transform: translateX(-50%);
-  touch-action: none;
-  cursor: pointer;
+  inset: 0;
+  z-index: 4;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
 }
 
 .hint-bar {
   position: absolute;
-  z-index: 3;
+  z-index: 5;
   left: 50%;
-  bottom: 18px;
+  top: 14px;
   transform: translateX(-50%);
   padding: 0.4rem 0.85rem;
   border-radius: 999px;
-  background: rgba(12, 18, 28, 0.45);
+  background: rgba(12, 18, 28, 0.4);
   color: #f4f0e6;
   font-size: 0.78rem;
   letter-spacing: 0.01em;
   white-space: nowrap;
   pointer-events: none;
   backdrop-filter: blur(6px);
-}
-
-@media (max-width: 720px) {
-  .hint-bar {
-    font-size: 0.65rem;
-    max-width: 92vw;
-    white-space: normal;
-    text-align: center;
-  }
 }
