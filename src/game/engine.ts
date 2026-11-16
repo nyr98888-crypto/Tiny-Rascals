@@ -488,10 +488,9 @@ export class GameEngine {
   }
 
   /**
-   * Cover zoom: map fills 100% of the viewport (zero letterboxing / black bars).
-   * Zooming in still works; zoom-out floor is this cover scale.
+   * Cover zoom: map fills the viewport (may crop one axis).
    */
-  private computeFitZoom() {
+  private computeCoverZoom() {
     const w = Math.max(320, this.canvas.clientWidth || 1280);
     const h = Math.max(240, this.canvas.clientHeight || 720);
     return Math.max(
@@ -500,25 +499,64 @@ export class GameEngine {
     );
   }
 
+  /**
+   * Contain zoom: entire map fits inside the viewport (breathing room / letterbox).
+   */
+  private computeContainZoom() {
+    const w = Math.max(320, this.canvas.clientWidth || 1280);
+    const h = Math.max(240, this.canvas.clientHeight || 720);
+    return Math.min(
+      w / Math.max(1, this.landW),
+      h / Math.max(1, this.landH)
+    );
+  }
+
+  /** Legacy alias used by non-meadow cover framing. */
+  private computeFitZoom() {
+    return this.computeCoverZoom();
+  }
+
   private isMeadowCamera() {
     return this.save.activeIsland === "meadow";
   }
 
   private recomputeZoomLimits() {
-    // Cover fit: full world height/width visible (zero crop / letterbox fill)
-    const fit = this.computeFitZoom();
-    this.minZoom = fit;
-    this.maxZoom = fit * 2.2;
-    this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || fit));
-    this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || fit));
+    if (this.isMeadowCamera()) {
+      // Contain + margin so the full meadow (trees/rocks/flowers) fits with air
+      const contain = this.computeContainZoom();
+      const overview = contain * 0.88;
+      this.minZoom = contain * 0.62;
+      this.maxZoom = contain * 2.2;
+      const fallback = Math.min(this.maxZoom, Math.max(this.minZoom, overview));
+      this.targetZoom = Math.min(
+        this.maxZoom,
+        Math.max(this.minZoom, this.targetZoom || fallback)
+      );
+      this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || fallback));
+    } else {
+      const fit = this.computeCoverZoom();
+      this.minZoom = fit;
+      this.maxZoom = fit * 2.2;
+      this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || fit));
+      this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || fit));
+    }
   }
 
   /** Apply default framing once land size is known (first load / island switch). */
   frameIsland() {
     this.recomputeZoomLimits();
-    const fit = this.computeFitZoom();
-    this.targetZoom = fit;
-    this.zoom = fit;
+    if (this.isMeadowCamera()) {
+      const overview = Math.min(
+        this.maxZoom,
+        Math.max(this.minZoom, this.computeContainZoom() * 0.88)
+      );
+      this.targetZoom = overview;
+      this.zoom = overview;
+    } else {
+      const fit = this.computeCoverZoom();
+      this.targetZoom = fit;
+      this.zoom = fit;
+    }
     this.landX = -this.landW / 2;
     this.landY = -this.landH / 2;
     this.camX = this.landX + this.landW * 0.5;
@@ -533,15 +571,19 @@ export class GameEngine {
   }
 
   /**
-   * Keep the map inside the viewport at the current zoom — no empty edges.
-   * When the view is larger than the island, lock to center; otherwise clamp
-   * so the land AABB cannot reveal outside the texture.
+   * Keep the map framed. At overview / zoomed-out meadow, center the island.
+   * When zoomed in, clamp so the land AABB stays in view.
    */
   private clampCamera() {
     const viewW = Math.max(320, this.canvas.clientWidth || 1280) / Math.max(0.01, this.zoom);
     const viewH = Math.max(240, this.canvas.clientHeight || 720) / Math.max(0.01, this.zoom);
-    const slackX = this.isMeadowCamera() ? 0 : Math.min(viewW * 0.12, this.landW * 0.08);
-    const slackY = this.isMeadowCamera() ? 0 : Math.min(viewH * 0.12, this.landH * 0.08);
+    // Meadow overview intentionally shows breathing room; other biomes stay tight
+    const slackX = this.isMeadowCamera()
+      ? 0
+      : Math.min(viewW * 0.12, this.landW * 0.08);
+    const slackY = this.isMeadowCamera()
+      ? 0
+      : Math.min(viewH * 0.12, this.landH * 0.08);
     const cx = this.landX + this.landW / 2;
     const cy = this.landY + this.landH / 2;
 
