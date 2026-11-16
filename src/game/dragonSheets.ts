@@ -7,6 +7,7 @@ export type DragonAnim =
   | "walk"
   | "run"
   | "carryWalk"
+  | "carryIdle"
   | "drag"
   | "placeWave"
   | "pet"
@@ -65,6 +66,8 @@ export const CLIPS: Record<DragonAnim, AnimClip> = {
   walk: { sheet: "move", frames: [3, 4, 5], fps: 8, loop: true, nativeFacing: "right" },
   run: { sheet: "move", frames: [6, 7, 8], fps: 11, loop: true, nativeFacing: "right" },
   carryWalk: { sheet: "carry", frames: [0, 1, 2], fps: 8, loop: true, nativeFacing: "left" },
+  /** F2 — arms raised, held while standing in Carry mode. */
+  carryIdle: { sheet: "carry", frames: [1], fps: 1, loop: true, nativeFacing: "left" },
   drag: { sheet: "moods", frames: [3, 4], fps: 6, loop: true, nativeFacing: "front" },
   placeWave: { sheet: "moods", frames: [5], fps: 1.5, loop: false, nativeFacing: "front" },
   pet: { sheet: "moods", frames: [6], fps: 1.2, loop: false, nativeFacing: "front" },

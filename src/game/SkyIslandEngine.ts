@@ -83,7 +83,8 @@ export class SkyIslandEngine {
               resolve();
             };
             img.onerror = () => reject(new Error(`Failed to load ${SHEET_SRC[id]}`));
-            img.src = SHEET_SRC[id];
+            // Cache-bust so freshly packed 768×768 sheets reload
+            img.src = `${SHEET_SRC[id]}?v=768pack`;
           })
       )
     );
@@ -128,7 +129,13 @@ export class SkyIslandEngine {
 
   toggleCarry() {
     this.carrying = !this.carrying;
-    if (!this.target) this.setAnim(this.carrying ? "carryWalk" : "idle", true);
+    this.target = null;
+    if (this.carrying) {
+      // Standing carry pose = F2 (arms raised)
+      this.setAnim("carryIdle", true);
+    } else {
+      this.setAnim("idle", true);
+    }
   }
 
   private bind() {
@@ -189,8 +196,11 @@ export class SkyIslandEngine {
     const p = this.clampPoint(sx, sy);
     this.target = p;
     const dist = Math.hypot(p.x - this.x, p.y - this.y);
-    if (this.carrying) this.setAnim("carryWalk", true);
-    else this.setAnim(dist > 220 ? "run" : "walk", true);
+    if (this.carrying) {
+      this.setAnim("carryWalk", true);
+    } else {
+      this.setAnim(dist > 220 ? "run" : "walk", true);
+    }
   };
 
   private onMove = (ev: PointerEvent) => {
@@ -212,10 +222,10 @@ export class SkyIslandEngine {
       this.clampToPlayable();
       const elapsed = performance.now() - this.pointerDownAt;
       if (!this.heldMoved && elapsed < 220) {
-        // Quick click on dragon → pet
-        this.setAnim("pet", true);
+        // Quick click on dragon → pet (unless carrying)
+        this.setAnim(this.carrying ? "carryIdle" : "pet", true);
       } else {
-        this.setAnim("placeWave", true);
+        this.setAnim(this.carrying ? "carryIdle" : "placeWave", true);
       }
       return;
     }
@@ -224,11 +234,11 @@ export class SkyIslandEngine {
   private clampPoint(x: number, y: number): Pt {
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
-    // Playable grass plateau (god-mode surface of the floating island)
+    // Enlarged grass plateau matching the near-fullscreen island plate
     const cx = w * 0.5;
-    const cy = h * 0.4;
-    const rx = w * 0.38;
-    const ry = h * 0.28;
+    const cy = h * 0.38;
+    const rx = w * 0.44;
+    const ry = h * 0.34;
     const dx = x - cx;
     const dy = y - cy;
     const e = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry);
@@ -257,7 +267,8 @@ export class SkyIslandEngine {
         this.x = this.target.x;
         this.y = this.target.y;
         this.target = null;
-        this.setAnim(this.carrying ? "placeWave" : "hop", true);
+        // Carry mode holds F2 at rest; otherwise celebration hop
+        this.setAnim(this.carrying ? "carryIdle" : "hop", true);
       } else {
         if (Math.abs(dx) > 0.5) this.movingRight = dx > 0;
         const sprint = this.anim === "run";
@@ -266,14 +277,17 @@ export class SkyIslandEngine {
         this.x += (dx / dist) * step;
         this.y += (dy / dist) * step;
         this.clampToPlayable();
-        if (this.carrying && this.anim !== "carryWalk") this.setAnim("carryWalk");
-        else if (!this.carrying) {
+        if (this.carrying) {
+          if (this.anim !== "carryWalk") this.setAnim("carryWalk", true);
+        } else {
           const want: DragonAnim = dist > 180 ? "run" : "walk";
           if (this.anim !== want && (this.anim === "walk" || this.anim === "run")) {
             this.setAnim(want);
           }
         }
       }
+    } else if (this.anim === "carryIdle") {
+      // Stay in carry idle until the player moves or toggles C off
     } else if (
       this.anim === "idle" ||
       this.anim === "waddle" ||
@@ -328,7 +342,7 @@ export class SkyIslandEngine {
       this.anim === "eat" ||
       this.anim === "waddle"
     ) {
-      this.setAnim("idle", true);
+      this.setAnim(this.carrying ? "carryIdle" : "idle", true);
       return;
     }
     // One-shot work clips stay on last frame until redirected

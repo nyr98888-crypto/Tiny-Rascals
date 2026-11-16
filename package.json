@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "remove-backgrounds": "node scripts/remove-backgrounds.mjs",
+    "clean-assets": "node scripts/clean-assets.mjs",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

@@ -61,7 +61,7 @@ export function SkyIslandScene() {
       />
       <canvas ref={canvasRef} className="play-canvas" />
       <div className="hint-bar">
-        Click to move · Drag the dragon · 1 chop · 2 mine · 3 dig · 4 farm · 5 cook · C carry
+        Click to move · Drag dragon · C carry on/off · 1 chop · 2 mine · 3 dig · 4 farm · 5 cook
       </div>
     </main>
   );
