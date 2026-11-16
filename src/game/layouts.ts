@@ -133,6 +133,7 @@ export const MEADOW_WORLD_H = 1786;
 function buildMeadowEntities(
   layoutOverrides: Record<string, { x: number; y: number }> = {}
 ): WorldEntity[] {
+  // Scales tuned for full-meadow cover view vs painted trees / path
   const props: {
     key: string;
     spriteId: string;
@@ -142,12 +143,12 @@ function buildMeadowEntities(
     y: number;
     scale: number;
   }[] = [
-    { key: "berry", spriteId: "prop_berry_bush", interact: "bush", kind: "prop", x: 0.62, y: 0.36, scale: 0.4 },
-    { key: "crystal", spriteId: "prop_t3_crystal_bush", interact: "bush", kind: "prop", x: 0.74, y: 0.5, scale: 0.38 },
-    { key: "timber", spriteId: "prop_wood_tree", interact: "tree", kind: "prop", x: 0.2, y: 0.4, scale: 0.48 },
-    { key: "tub", spriteId: "prop_wash_tub", interact: "tub", kind: "prop", x: 0.34, y: 0.6, scale: 0.4 },
-    { key: "campfire", spriteId: "clutter_campfire", interact: "campfire", kind: "clutter", x: 0.5, y: 0.56, scale: 0.36 },
-    { key: "tent", spriteId: "clutter_t3_pavilion", interact: "bed", kind: "clutter", x: 0.26, y: 0.68, scale: 0.42 },
+    { key: "berry", spriteId: "prop_berry_bush", interact: "bush", kind: "prop", x: 0.62, y: 0.36, scale: 0.92 },
+    { key: "crystal", spriteId: "prop_t3_crystal_bush", interact: "bush", kind: "prop", x: 0.74, y: 0.5, scale: 0.88 },
+    { key: "timber", spriteId: "prop_wood_tree", interact: "tree", kind: "prop", x: 0.2, y: 0.4, scale: 1.05 },
+    { key: "tub", spriteId: "prop_wash_tub", interact: "tub", kind: "prop", x: 0.34, y: 0.6, scale: 0.9 },
+    { key: "campfire", spriteId: "clutter_campfire", interact: "campfire", kind: "clutter", x: 0.5, y: 0.56, scale: 0.82 },
+    { key: "tent", spriteId: "clutter_t3_pavilion", interact: "bed", kind: "clutter", x: 0.26, y: 0.68, scale: 0.95 },
   ];
 
   return props.map((p) => {
@@ -159,7 +160,7 @@ function buildMeadowEntities(
       spriteId: p.spriteId,
       x: pos.x,
       y: pos.y,
-      scale: p.scale * ENTITY_SCALE,
+      scale: p.scale * MEADOW_ENTITY_SCALE,
       footY: pos.y,
       movable: true,
       interact: p.interact,
@@ -399,6 +400,9 @@ export const SPRITE_ANCHOR_Y = 0.95;
 
 /** World props/buildings/crops scale relative to the island (for placement menu). */
 export const ENTITY_SCALE = 0.76;
+
+/** a1 Meadow props — larger so they read against painted trees at cover-fit zoom. */
+export const MEADOW_ENTITY_SCALE = 1.15;
 
 export function landToScreen(
   nx: number,

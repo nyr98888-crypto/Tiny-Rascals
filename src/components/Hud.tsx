@@ -148,7 +148,7 @@ export function Hud({ engine }: { engine: GameEngine | null }) {
             : engine.decorateMode
               ? "Decorate: drag buildings, stations, crops & props · dock stays fixed · scroll to zoom"
               : save.activeIsland === "meadow"
-                ? "Drag to pan · scroll to zoom · click a Rascal to follow · Decorate to place props on the grass"
+                ? "Full meadow on load · scroll to zoom in · drag to pan · click a Rascal to follow"
                 : `Drag to pan · scroll to zoom · pick up Rascals · ${prog.buildingTier}/${prog.propTier}/${prog.cropTier}/${prog.clutterTier} tiers`}
         </div>
       </div>

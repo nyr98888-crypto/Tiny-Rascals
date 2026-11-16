@@ -104,10 +104,10 @@ export class GameEngine {
 
   camX = 0;
   camY = 0;
-  zoom = 1.3;
-  targetZoom = 1.3;
-  minZoom = 0.85;
-  maxZoom = 2.0;
+  zoom = 0.7;
+  targetZoom = 0.7;
+  minZoom = 0.5;
+  maxZoom = 2.4;
   bob = 0;
   time = 0;
   dpr = 1;
@@ -137,8 +137,10 @@ export class GameEngine {
   layoutSaveStatus = "";
   dragEntity: WorldEntity | null = null;
 
-  /** Rascal draw size multiplier (~1.6× prior 80px base). */
+  /** Rascal draw size in world px (other biomes). */
   static RASCAL_SIZE = 128;
+  /** a1 full-meadow overview — sized to painted trees / path. */
+  static MEADOW_RASCAL_SIZE = 210;
   /** Normalized grab offset so entities don't jump on pointer-down. */
   grabOffset = { dx: 0, dy: 0 };
   hoverEntity: WorldEntity | null = null;
@@ -503,42 +505,31 @@ export class GameEngine {
   }
 
   private recomputeZoomLimits() {
+    // Cover fit: full world height/width visible (zero crop / letterbox fill)
     const fit = this.computeFitZoom();
-    if (this.isMeadowCamera()) {
-      // a1: absolute 0.85–2.0, never below cover so empty edges stay hidden
-      this.minZoom = Math.max(0.85, fit);
-      this.maxZoom = 2.0;
-      const fallback = Math.min(this.maxZoom, Math.max(this.minZoom, 1.3));
-      this.targetZoom = Math.min(
-        this.maxZoom,
-        Math.max(this.minZoom, this.targetZoom || fallback)
-      );
-      this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || fallback));
-    } else {
-      this.minZoom = fit;
-      this.maxZoom = fit * 2.2;
-      this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || fit));
-      this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || fit));
-    }
+    this.minZoom = fit;
+    this.maxZoom = fit * 2.2;
+    this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || fit));
+    this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || fit));
   }
 
   /** Apply default framing once land size is known (first load / island switch). */
   frameIsland() {
     this.recomputeZoomLimits();
-    if (this.isMeadowCamera()) {
-      const z = Math.min(this.maxZoom, Math.max(this.minZoom, 1.3));
-      this.targetZoom = z;
-      this.zoom = z;
-    } else {
-      const fit = this.computeFitZoom();
-      this.targetZoom = fit;
-      this.zoom = fit;
-    }
+    const fit = this.computeFitZoom();
+    this.targetZoom = fit;
+    this.zoom = fit;
     this.landX = -this.landW / 2;
     this.landY = -this.landH / 2;
     this.camX = this.landX + this.landW * 0.5;
     this.camY = this.landY + this.landH * 0.5;
     this.clampCamera();
+  }
+
+  private rascalDrawSize() {
+    return this.isMeadowCamera()
+      ? GameEngine.MEADOW_RASCAL_SIZE
+      : GameEngine.RASCAL_SIZE;
   }
 
   /**
@@ -657,7 +648,7 @@ export class GameEngine {
     for (let i = this.rascals.length - 1; i >= 0; i--) {
       const r = this.rascals[i];
       const p = landToScreen(r.x, r.y, this.landX, this.landY, this.landW, this.landH);
-      const s = GameEngine.RASCAL_SIZE;
+      const s = this.rascalDrawSize();
       const top = p.y - s * SPRITE_ANCHOR_Y;
       if (Math.abs(wx - p.x) < s * 0.45 && wy < p.y + 10 && wy > top) return r;
     }
@@ -2001,7 +1992,7 @@ export class GameEngine {
     const scaleY = r.squash;
     const scaleX = 2 - r.squash;
     const depth = depthScaleAtY(r.y, this.save.activeIsland);
-    const size = GameEngine.RASCAL_SIZE * depth;
+    const size = this.rascalDrawSize() * depth;
     const footOffset = size * SPRITE_ANCHOR_Y;
 
     // Soft dark oval contact shadow directly under feet
