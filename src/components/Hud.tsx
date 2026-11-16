@@ -56,20 +56,23 @@ export function Hud({ engine }: { engine: GameEngine | null }) {
       <div className="hud-top">
         <div className="brand">Tiny Rascals</div>
         <div className="panel resources">
-          <span title="A1 Meadow">
+          <span title="Meadow">
             Wood <strong>{save.resources.wood}</strong>
           </span>
-          <span title="A2">
+          <span title="Lagoon">
             Berries <strong>{save.resources.berries}</strong>
           </span>
-          <span title="A3 Treats">
+          <span title="Orchard">
             Treats <strong>{save.resources.crops}</strong>
           </span>
-          <span title="A4 Tokens">
+          <span title="Ruins">
             Tokens <strong>{save.resources.tokens ?? 0}</strong>
           </span>
-          <span title="A5 Gems">
+          <span title="Hollow">
             Gems <strong>{save.resources.gems}</strong>
+          </span>
+          <span title="Shore">
+            Shells <strong>{save.resources.shells ?? 0}</strong>
           </span>
         </div>
         <div className="toolbar panel">
@@ -146,10 +149,8 @@ export function Hud({ engine }: { engine: GameEngine | null }) {
           {engine.layoutEditMode
             ? `Edit Plots & Roads: drag amber plots · teal clearings · gold road nodes · ${engine.layoutSaveStatus || "unsaved"}`
             : engine.decorateMode
-              ? "Decorate: drag buildings, stations, crops & props · dock stays fixed · scroll to zoom"
-              : save.activeIsland === "meadow"
-                ? "Full meadow overview · scroll to zoom · drag to pan · click a Rascal to follow"
-                : `Drag to pan · scroll to zoom · pick up Rascals · ${prog.buildingTier}/${prog.propTier}/${prog.cropTier}/${prog.clutterTier} tiers`}
+              ? "Decorate: drag props anywhere on the ranch · scroll to zoom"
+              : "Drag / WASD to pan · scroll to zoom · plot bar glides camera · click a Rascal to follow"}
         </div>
       </div>
 

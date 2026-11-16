@@ -124,10 +124,6 @@ function place(
   return off ? { x: off.x, y: off.y } : defaults;
 }
 
-/** a1 Meadow world space — single non-tiled image scaled from 2752×1536. */
-export const MEADOW_WORLD_W = 3200;
-export const MEADOW_WORLD_H = 1786;
-
 /**
  * a1 Meadow interactive props on open grass (no dirt plots).
  * Freely movable in Decorate mode across the lawn.

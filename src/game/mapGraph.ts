@@ -102,11 +102,6 @@ export function usesSharedMapGraph(_island: IslandId): boolean {
   return true;
 }
 
-/** a1 Meadow: free roam on open grass (not snapped to dirt-road graph). */
-export function usesOpenGrassWalk(island: IslandId): boolean {
-  return island === "meadow";
-}
-
 export type PortalSide = "left" | "right";
 
 export function portalDestination(
