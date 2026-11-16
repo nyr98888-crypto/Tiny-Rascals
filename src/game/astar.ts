@@ -1,5 +1,10 @@
-import { GRID_COLS, GRID_ROWS, TILE } from "./worldLayout";
-import { tileCenter, worldToTile, type Pt, type WalkGrid } from "./walkGrid";
+import { TILE } from "@/data/worldMap";
+import {
+  tileCenter,
+  worldToTile,
+  type Pt,
+  type WalkGridState,
+} from "./walkGrid";
 
 const DIRS: [number, number, number][] = [
   [1, 0, 1],
@@ -18,30 +23,26 @@ function heuristic(ax: number, ay: number, bx: number, by: number) {
   return Math.max(dx, dy) + (Math.SQRT2 - 1) * Math.min(dx, dy);
 }
 
-/**
- * A* on the walk grid. Returns world-space waypoints (tile centers),
- * including start and goal, or empty if no path.
- */
-export function findPath(grid: WalkGrid, from: Pt, to: Pt): Pt[] {
-  const s = worldToTile(from.x, from.y);
-  const g = worldToTile(to.x, to.y);
-  if (!grid[s.ty * GRID_COLS + s.tx] || !grid[g.ty * GRID_COLS + g.tx]) return [];
+export function findPath(state: WalkGridState, from: Pt, to: Pt): Pt[] {
+  const { grid, cols, rows } = state;
+  const s = worldToTile(state, from.x, from.y);
+  const g = worldToTile(state, to.x, to.y);
+  if (!grid[s.ty * cols + s.tx] || !grid[g.ty * cols + g.tx]) return [];
 
-  const start = s.ty * GRID_COLS + s.tx;
-  const goal = g.ty * GRID_COLS + g.tx;
+  const start = s.ty * cols + s.tx;
+  const goal = g.ty * cols + g.tx;
   if (start === goal) return [to];
 
   const open: number[] = [start];
-  const came = new Int32Array(GRID_COLS * GRID_ROWS).fill(-1);
-  const gScore = new Float32Array(GRID_COLS * GRID_ROWS).fill(Infinity);
-  const fScore = new Float32Array(GRID_COLS * GRID_ROWS).fill(Infinity);
-  const inOpen = new Uint8Array(GRID_COLS * GRID_ROWS);
+  const came = new Int32Array(cols * rows).fill(-1);
+  const gScore = new Float32Array(cols * rows).fill(Infinity);
+  const fScore = new Float32Array(cols * rows).fill(Infinity);
+  const inOpen = new Uint8Array(cols * rows);
   gScore[start] = 0;
   fScore[start] = heuristic(s.tx, s.ty, g.tx, g.ty);
   inOpen[start] = 1;
 
   while (open.length) {
-    // Pop lowest fScore
     let bestI = 0;
     for (let i = 1; i < open.length; i++) {
       if (fScore[open[i]] < fScore[open[bestI]]) bestI = i;
@@ -55,28 +56,25 @@ export function findPath(grid: WalkGrid, from: Pt, to: Pt): Pt[] {
       const tiles: { tx: number; ty: number }[] = [];
       let c = goal;
       while (c !== -1) {
-        tiles.push({ tx: c % GRID_COLS, ty: Math.floor(c / GRID_COLS) });
+        tiles.push({ tx: c % cols, ty: Math.floor(c / cols) });
         c = came[c];
       }
       tiles.reverse();
-      const world = tiles.map((t) => tileCenter(t.tx, t.ty));
-      // Snap final waypoint to exact click
+      const world = tiles.map((t) => tileCenter(state, t.tx, t.ty));
       world[world.length - 1] = { x: to.x, y: to.y };
-      return smoothPath(grid, world);
+      return smoothPath(state, world);
     }
 
-    const ctx = cur % GRID_COLS;
-    const cty = Math.floor(cur / GRID_COLS);
-
+    const ctx = cur % cols;
+    const cty = Math.floor(cur / cols);
     for (const [dx, dy, cost] of DIRS) {
       const nx = ctx + dx;
       const ny = cty + dy;
-      if (nx < 0 || ny < 0 || nx >= GRID_COLS || ny >= GRID_ROWS) continue;
-      // No corner-cutting through blocked diagonals
+      if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
       if (dx !== 0 && dy !== 0) {
-        if (!grid[cty * GRID_COLS + nx] || !grid[ny * GRID_COLS + ctx]) continue;
+        if (!grid[cty * cols + nx] || !grid[ny * cols + ctx]) continue;
       }
-      const ni = ny * GRID_COLS + nx;
+      const ni = ny * cols + nx;
       if (!grid[ni]) continue;
       const tent = gScore[cur] + cost;
       if (tent >= gScore[ni]) continue;
@@ -92,28 +90,27 @@ export function findPath(grid: WalkGrid, from: Pt, to: Pt): Pt[] {
   return [];
 }
 
-/** Remove intermediate waypoints when line-of-sight is clear. */
-function smoothPath(grid: WalkGrid, path: Pt[]): Pt[] {
+function smoothPath(state: WalkGridState, path: Pt[]): Pt[] {
   if (path.length <= 2) return path;
   const out: Pt[] = [path[0]];
   let i = 0;
   while (i < path.length - 1) {
     let j = path.length - 1;
-    while (j > i + 1 && !lineOfSight(grid, path[i], path[j])) j--;
+    while (j > i + 1 && !lineOfSight(state, path[i], path[j])) j--;
     out.push(path[j]);
     i = j;
   }
   return out;
 }
 
-function lineOfSight(grid: WalkGrid, a: Pt, b: Pt): boolean {
+function lineOfSight(state: WalkGridState, a: Pt, b: Pt): boolean {
   const steps = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / (TILE * 0.45));
   for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
+    const t = i / Math.max(1, steps);
     const x = a.x + (b.x - a.x) * t;
     const y = a.y + (b.y - a.y) * t;
-    const { tx, ty } = worldToTile(x, y);
-    if (!grid[ty * GRID_COLS + tx]) return false;
+    const { tx, ty } = worldToTile(state, x, y);
+    if (!state.grid[ty * state.cols + tx]) return false;
   }
   return true;
 }

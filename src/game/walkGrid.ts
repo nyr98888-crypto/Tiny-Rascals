@@ -1,40 +1,25 @@
 import {
-  BRIDGES,
-  GRID_COLS,
-  GRID_ROWS,
-  ISLAND_ORDER,
-  ISLANDS,
   TILE,
   islandWalkEllipse,
+  resolveActiveBridges,
+  unlockedIslands,
   type IslandDef,
-} from "./worldLayout";
+  type ResolvedBridge,
+  type WorldBounds,
+  computeWorldBounds,
+} from "@/data/worldMap";
 
 export type Pt = { x: number; y: number };
 
-/** 1 = walkable, 0 = blocked */
-export type WalkGrid = Uint8Array;
-
-export function buildWalkGrid(): WalkGrid {
-  const grid = new Uint8Array(GRID_COLS * GRID_ROWS);
-  for (let ty = 0; ty < GRID_ROWS; ty++) {
-    for (let tx = 0; tx < GRID_COLS; tx++) {
-      const cx = tx * TILE + TILE / 2;
-      const cy = ty * TILE + TILE / 2;
-      grid[ty * GRID_COLS + tx] = isWorldWalkable(cx, cy) ? 1 : 0;
-    }
-  }
-  return grid;
-}
-
-export function isWorldWalkable(wx: number, wy: number): boolean {
-  for (const id of ISLAND_ORDER) {
-    if (pointInEllipse(wx, wy, islandWalkEllipse(ISLANDS[id]))) return true;
-  }
-  for (const b of BRIDGES) {
-    if (wx >= b.x && wx <= b.x + b.w && wy >= b.y && wy <= b.y + b.h) return true;
-  }
-  return false;
-}
+export type WalkGridState = {
+  grid: Uint8Array;
+  cols: number;
+  rows: number;
+  /** World origin of tile (0,0) */
+  originX: number;
+  originY: number;
+  bounds: WorldBounds;
+};
 
 function pointInEllipse(
   x: number,
@@ -46,25 +31,90 @@ function pointInEllipse(
   return (dx * dx) / (e.rx * e.rx) + (dy * dy) / (e.ry * e.ry) <= 1;
 }
 
-export function worldToTile(wx: number, wy: number) {
+export function isWalkableAt(
+  wx: number,
+  wy: number,
+  islands: IslandDef[],
+  bridges: ResolvedBridge[]
+) {
+  for (const i of islands) {
+    if (pointInEllipse(wx, wy, islandWalkEllipse(i))) return true;
+  }
+  for (const b of bridges) {
+    const c = b.corridor;
+    if (wx >= c.x && wx <= c.x + c.w && wy >= c.y && wy <= c.y + c.h) return true;
+    // Also thick capsule along the bridge centerline
+    if (distToSegment(wx, wy, b.x1, b.y1, b.x2, b.y2) <= b.width * 0.55) return true;
+  }
+  return false;
+}
+
+function distToSegment(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len2 = dx * dx + dy * dy || 1;
+  let t = ((px - x1) * dx + (py - y1) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  const qx = x1 + t * dx;
+  const qy = y1 + t * dy;
+  return Math.hypot(px - qx, py - qy);
+}
+
+/**
+ * Build / rebuild the A* navigation grid from unlocked islands + active bridges.
+ * Call whenever an island is unlocked or the registry changes.
+ */
+export function rebuildWalkabilityGrid(
+  islands: IslandDef[] = unlockedIslands(),
+  bridges: ResolvedBridge[] = resolveActiveBridges()
+): WalkGridState {
+  const bounds = computeWorldBounds(islands);
+  const cols = Math.max(1, Math.ceil(bounds.worldWidth / TILE));
+  const rows = Math.max(1, Math.ceil(bounds.worldHeight / TILE));
+  const grid = new Uint8Array(cols * rows);
+  const originX = bounds.minX;
+  const originY = bounds.minY;
+
+  for (let ty = 0; ty < rows; ty++) {
+    for (let tx = 0; tx < cols; tx++) {
+      const wx = originX + tx * TILE + TILE / 2;
+      const wy = originY + ty * TILE + TILE / 2;
+      grid[ty * cols + tx] = isWalkableAt(wx, wy, islands, bridges) ? 1 : 0;
+    }
+  }
+
+  return { grid, cols, rows, originX, originY, bounds };
+}
+
+export function worldToTile(state: WalkGridState, wx: number, wy: number) {
   return {
-    tx: Math.max(0, Math.min(GRID_COLS - 1, Math.floor(wx / TILE))),
-    ty: Math.max(0, Math.min(GRID_ROWS - 1, Math.floor(wy / TILE))),
+    tx: Math.max(0, Math.min(state.cols - 1, Math.floor((wx - state.originX) / TILE))),
+    ty: Math.max(0, Math.min(state.rows - 1, Math.floor((wy - state.originY) / TILE))),
   };
 }
 
-export function tileCenter(tx: number, ty: number): Pt {
-  return { x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 };
+export function tileCenter(state: WalkGridState, tx: number, ty: number): Pt {
+  return {
+    x: state.originX + tx * TILE + TILE / 2,
+    y: state.originY + ty * TILE + TILE / 2,
+  };
 }
 
-export function nearestWalkableTile(grid: WalkGrid, wx: number, wy: number): Pt {
-  const start = worldToTile(wx, wy);
-  if (grid[start.ty * GRID_COLS + start.tx]) return tileCenter(start.tx, start.ty);
-
-  // Spiral / BFS outward
+export function nearestWalkable(state: WalkGridState, wx: number, wy: number): Pt {
+  const start = worldToTile(state, wx, wy);
+  if (state.grid[start.ty * state.cols + start.tx]) {
+    return { x: wx, y: wy };
+  }
   const q: number[] = [start.tx, start.ty];
-  const seen = new Uint8Array(GRID_COLS * GRID_ROWS);
-  seen[start.ty * GRID_COLS + start.tx] = 1;
+  const seen = new Uint8Array(state.cols * state.rows);
+  seen[start.ty * state.cols + start.tx] = 1;
   let qi = 0;
   while (qi < q.length) {
     const tx = q[qi++];
@@ -81,19 +131,19 @@ export function nearestWalkableTile(grid: WalkGrid, wx: number, wy: number): Pt 
     ]) {
       const nx = tx + dx;
       const ny = ty + dy;
-      if (nx < 0 || ny < 0 || nx >= GRID_COLS || ny >= GRID_ROWS) continue;
-      const i = ny * GRID_COLS + nx;
+      if (nx < 0 || ny < 0 || nx >= state.cols || ny >= state.rows) continue;
+      const i = ny * state.cols + nx;
       if (seen[i]) continue;
       seen[i] = 1;
-      if (grid[i]) return tileCenter(nx, ny);
+      if (state.grid[i]) return tileCenter(state, nx, ny);
       q.push(nx, ny);
     }
   }
-  // Fallback: center island
-  return { x: ISLANDS.center.cx, y: ISLANDS.center.cy };
+  const hub = islandsFallback();
+  return { x: hub.x, y: hub.y };
 }
 
-export function islandClearing(island: IslandDef): Pt {
-  const e = islandWalkEllipse(island);
-  return { x: e.cx, y: e.cy };
+function islandsFallback() {
+  const list = unlockedIslands();
+  return list.find((i) => i.role === "hub") ?? list[0] ?? { x: 2100, y: 1000 };
 }
