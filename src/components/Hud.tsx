@@ -147,7 +147,9 @@ export function Hud({ engine }: { engine: GameEngine | null }) {
             ? `Edit Plots & Roads: drag amber plots · teal clearings · gold road nodes · ${engine.layoutSaveStatus || "unsaved"}`
             : engine.decorateMode
               ? "Decorate: drag buildings, stations, crops & props · dock stays fixed · scroll to zoom"
-              : `Drag to pan · scroll to zoom · pick up Rascals · ${prog.buildingTier}/${prog.propTier}/${prog.cropTier}/${prog.clutterTier} tiers`}
+              : save.activeIsland === "meadow"
+                ? "Drag to pan · scroll to zoom · click a Rascal to follow · Decorate to place props on the grass"
+                : `Drag to pan · scroll to zoom · pick up Rascals · ${prog.buildingTier}/${prog.propTier}/${prog.cropTier}/${prog.clutterTier} tiers`}
         </div>
       </div>
 

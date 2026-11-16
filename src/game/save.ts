@@ -1,4 +1,3 @@
-import { SHARED_MAP } from "./mapGraph";
 import {
   ISLAND_ORDER,
   type GameSave,
@@ -10,14 +9,13 @@ import {
 
 const KEY = "tiny-rascals-save-v1";
 
-/** Level 1 Meadow spawn ring around the dirt crossroads. */
+/** Level 1 Meadow spawn ring on the open grass clearing. */
 function meadowSpawnPoint(k: number): Vec2 {
-  const hub = SHARED_MAP.nodes.crossroads;
   const col = k % 3;
   const row = Math.floor(k / 3);
   return {
-    x: hub.x + (col - 1) * 0.04,
-    y: hub.y + row * 0.05,
+    x: 0.48 + (col - 1) * 0.06,
+    y: 0.52 + row * 0.06,
   };
 }
 

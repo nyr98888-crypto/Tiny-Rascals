@@ -2,11 +2,13 @@
   "generatedAt": "2026-11-15T21:29:45.635Z",
   "lands": {
     "meadow": {
-      "src": "/world/land-meadow.jpg",
-      "w": 5504,
-      "h": 3072,
+      "src": "/world/a1-meadow.jpg",
+      "w": 3200,
+      "h": 1786,
       "area": "a1",
-      "theme": "Meadow"
+      "theme": "Meadow",
+      "nativeW": 2752,
+      "nativeH": 1536
     },
     "lagoon": {
       "src": "/world/a2.jpg",

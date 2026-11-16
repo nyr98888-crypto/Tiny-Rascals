@@ -4,6 +4,8 @@ import {
   buildIslandEntities,
   landToScreen,
   ISO_Y,
+  MEADOW_WORLD_H,
+  MEADOW_WORLD_W,
   SPRITE_ANCHOR_Y,
 } from "./layouts";
 import { Pose, poseFromVelocity } from "./poses";
@@ -30,6 +32,7 @@ import {
   portalSideAt,
   roadPath,
   SHARED_MAP,
+  usesOpenGrassWalk,
   usesSharedMapGraph,
   type AreaResource,
 } from "./mapGraph";
@@ -101,22 +104,24 @@ export class GameEngine {
 
   camX = 0;
   camY = 0;
-  zoom = 0.7;
-  targetZoom = 0.7;
-  minZoom = 0.5;
-  maxZoom = 2.4;
+  zoom = 1.3;
+  targetZoom = 1.3;
+  minZoom = 0.85;
+  maxZoom = 2.0;
   bob = 0;
   time = 0;
   dpr = 1;
   /** Smoothed 0..1 night amount for sky cross-fade + lighting. */
   nightBlend = 0;
+  /** When set, camera smoothly tracks this Rascal until the player pans. */
+  followRascalId: string | null = null;
 
   /** Land texture pixel size. */
   landTexW = 2048;
   landTexH = 1143;
   /** Full-bleed map display size (native aspect, ISO_Y === 1). */
-  landW = 2048;
-  landH = 1143;
+  landW = MEADOW_WORLD_W;
+  landH = MEADOW_WORLD_H;
   landX = 0;
   landY = 0;
 
@@ -308,14 +313,19 @@ export class GameEngine {
     }
     await this.textures.loadMany(srcs);
     this.textures.disposeExcept(keep);
-    // Prefer native texture size for edge-to-edge 16:9 cover
+    // Prefer native texture size; a1 Meadow uses fixed 3200×1786 world space
     const landImg = this.textures.get(land.src);
     const tw = landImg?.naturalWidth || land.w;
     const th = landImg?.naturalHeight || land.h;
     this.landTexW = tw;
     this.landTexH = th;
-    this.landW = tw;
-    this.landH = th * ISO_Y;
+    if (island === "meadow") {
+      this.landW = MEADOW_WORLD_W;
+      this.landH = MEADOW_WORLD_H;
+    } else {
+      this.landW = tw;
+      this.landH = th * ISO_Y;
+    }
     this.recomputeZoomLimits();
   }
 
@@ -381,6 +391,7 @@ export class GameEngine {
     const prog = this.save.islands[id];
     if (!prog.unlocked && !this.save.sandboxPreviewAll) return;
     this.persistRascals();
+    this.followRascalId = null;
     this.save.activeIsland = id;
     writeSave(this.save);
     this.reloadIsland();
@@ -487,20 +498,42 @@ export class GameEngine {
     );
   }
 
+  private isMeadowCamera() {
+    return this.save.activeIsland === "meadow";
+  }
+
   private recomputeZoomLimits() {
     const fit = this.computeFitZoom();
-    this.minZoom = fit;
-    this.maxZoom = fit * 2.2;
-    this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || fit));
-    this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || fit));
+    if (this.isMeadowCamera()) {
+      // a1: absolute 0.85–2.0, never below cover so empty edges stay hidden
+      this.minZoom = Math.max(0.85, fit);
+      this.maxZoom = 2.0;
+      const fallback = Math.min(this.maxZoom, Math.max(this.minZoom, 1.3));
+      this.targetZoom = Math.min(
+        this.maxZoom,
+        Math.max(this.minZoom, this.targetZoom || fallback)
+      );
+      this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || fallback));
+    } else {
+      this.minZoom = fit;
+      this.maxZoom = fit * 2.2;
+      this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom || fit));
+      this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom || fit));
+    }
   }
 
   /** Apply default framing once land size is known (first load / island switch). */
   frameIsland() {
     this.recomputeZoomLimits();
-    const fit = this.computeFitZoom();
-    this.targetZoom = fit;
-    this.zoom = fit;
+    if (this.isMeadowCamera()) {
+      const z = Math.min(this.maxZoom, Math.max(this.minZoom, 1.3));
+      this.targetZoom = z;
+      this.zoom = z;
+    } else {
+      const fit = this.computeFitZoom();
+      this.targetZoom = fit;
+      this.zoom = fit;
+    }
     this.landX = -this.landW / 2;
     this.landY = -this.landH / 2;
     this.camX = this.landX + this.landW * 0.5;
@@ -509,15 +542,15 @@ export class GameEngine {
   }
 
   /**
-   * Keep the floating island comfortably inside the viewport at the current zoom.
-   * When the view is larger than the island, lock to center; otherwise clamp so
-   * the land AABB cannot be dragged fully off-screen.
+   * Keep the map inside the viewport at the current zoom — no empty edges.
+   * When the view is larger than the island, lock to center; otherwise clamp
+   * so the land AABB cannot reveal outside the texture.
    */
   private clampCamera() {
     const viewW = Math.max(320, this.canvas.clientWidth || 1280) / Math.max(0.01, this.zoom);
     const viewH = Math.max(240, this.canvas.clientHeight || 720) / Math.max(0.01, this.zoom);
-    const slackX = Math.min(viewW * 0.12, this.landW * 0.08);
-    const slackY = Math.min(viewH * 0.12, this.landH * 0.08);
+    const slackX = this.isMeadowCamera() ? 0 : Math.min(viewW * 0.12, this.landW * 0.08);
+    const slackY = this.isMeadowCamera() ? 0 : Math.min(viewH * 0.12, this.landH * 0.08);
     const cx = this.landX + this.landW / 2;
     const cy = this.landY + this.landH / 2;
 
@@ -707,6 +740,7 @@ export class GameEngine {
         this.canvas.classList.remove("dragging");
         return;
       }
+      this.followRascalId = null;
       this.dragging = true;
       this.canvas.classList.add("dragging");
       this.dragLast = { x: sx, y: sy };
@@ -724,7 +758,8 @@ export class GameEngine {
         this.audio.pop();
         return;
       }
-      // Pan camera while decorating if nothing grabbed
+      // Pan camera while decorating if nothing grabbed — unlocks follow
+      this.followRascalId = null;
       this.dragging = true;
       this.canvas.classList.add("dragging");
       this.dragLast = { x: sx, y: sy };
@@ -750,6 +785,8 @@ export class GameEngine {
       return;
     }
 
+    // Manual pan unlocks Rascal follow mode
+    this.followRascalId = null;
     this.dragging = true;
     this.canvas.classList.add("dragging");
     this.dragLast = { x: sx, y: sy };
@@ -861,7 +898,8 @@ export class GameEngine {
       const wasClick = elapsed < 220 && travel < 0.03 && !this.heldMoved;
 
       if (wasClick) {
-        // Click: Sheet2 Jump/Land → Sheet3 Cheer
+        // Click: lock camera follow + Sheet2 Jump/Land → Sheet3 Cheer
+        this.followRascalId = r.id;
         this.startPoseChain(r, [Pose.CROUCH, Pose.JUMP, Pose.LAND, Pose.CHEER], "click", 0.4);
         this.audio.chirp();
       } else if (r.shake > 0.8) {
@@ -959,12 +997,13 @@ export class GameEngine {
     else this.audio.chirp();
   }
 
-  /** Route along the shared dirt/bridge graph when on Meadow/Lagoon. */
+  /** Direct walk on a1 open grass; road-graph elsewhere. */
   private setRoadTarget(r: Rascal, tx: number, ty: number) {
     const island = this.save.activeIsland;
-    if (!usesSharedMapGraph(island)) {
+    if (usesOpenGrassWalk(island) || !usesSharedMapGraph(island)) {
+      const feet = clampToWalkBounds(tx, ty, island);
       r.pathQueue = [];
-      r.target = { x: tx, y: ty };
+      r.target = feet;
       return;
     }
     const pts = roadPath(r.x, r.y, tx, ty);
@@ -1207,16 +1246,11 @@ export class GameEngine {
 
   private update(dt: number) {
     this.time += dt;
-    this.bob = Math.sin(this.time * 0.7) * 8;
+    // a1 meadow stays flat (no bob) so the single background never drifts
+    this.bob = this.isMeadowCamera() ? 0 : Math.sin(this.time * 0.7) * 8;
     this.zoom += (this.targetZoom - this.zoom) * Math.min(1, dt * 8);
     // Keep min/max in sync with viewport size without resetting the player's zoom
-    {
-      const fit = this.computeFitZoom();
-      this.minZoom = fit;
-      this.maxZoom = fit * 2.2;
-      this.targetZoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.targetZoom));
-      this.zoom = Math.min(this.maxZoom, Math.max(this.minZoom, this.zoom));
-    }
+    this.recomputeZoomLimits();
 
     // Day/night cycle ~90s full day unless manual
     if (this.save.manualNight === null) {
@@ -1228,10 +1262,30 @@ export class GameEngine {
 
     this.landX = -this.landW / 2;
     this.landY = -this.landH / 2 + this.bob;
-    this.clampCamera();
 
     for (const r of [...this.rascals]) this.updateRascal(r, dt);
     this.tickBackgroundCommutes(dt);
+
+    // Follow locked Rascal until the player pans the map
+    if (this.followRascalId) {
+      const followed = this.rascals.find((r) => r.id === this.followRascalId);
+      if (!followed) {
+        this.followRascalId = null;
+      } else {
+        const p = landToScreen(
+          followed.x,
+          followed.y,
+          this.landX,
+          this.landY,
+          this.landW,
+          this.landH
+        );
+        const k = Math.min(1, dt * 7);
+        this.camX += (p.x - this.camX) * k;
+        this.camY += (p.y - this.camY) * k;
+      }
+    }
+    this.clampCamera();
 
     for (const p of this.particles) {
       p.life -= dt;

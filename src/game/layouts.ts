@@ -122,10 +122,55 @@ function place(
   return off ? { x: off.x, y: off.y } : defaults;
 }
 
+/** a1 Meadow world space — single non-tiled image scaled from 2752×1536. */
+export const MEADOW_WORLD_W = 3200;
+export const MEADOW_WORLD_H = 1786;
+
+/**
+ * a1 Meadow interactive props on open grass (no dirt plots).
+ * Freely movable in Decorate mode across the lawn.
+ */
+function buildMeadowEntities(
+  layoutOverrides: Record<string, { x: number; y: number }> = {}
+): WorldEntity[] {
+  const props: {
+    key: string;
+    spriteId: string;
+    interact: WorldEntity["interact"];
+    kind: WorldEntity["kind"];
+    x: number;
+    y: number;
+    scale: number;
+  }[] = [
+    { key: "berry", spriteId: "prop_berry_bush", interact: "bush", kind: "prop", x: 0.62, y: 0.36, scale: 0.4 },
+    { key: "crystal", spriteId: "prop_t3_crystal_bush", interact: "bush", kind: "prop", x: 0.74, y: 0.5, scale: 0.38 },
+    { key: "timber", spriteId: "prop_wood_tree", interact: "tree", kind: "prop", x: 0.2, y: 0.4, scale: 0.48 },
+    { key: "tub", spriteId: "prop_wash_tub", interact: "tub", kind: "prop", x: 0.34, y: 0.6, scale: 0.4 },
+    { key: "campfire", spriteId: "clutter_campfire", interact: "campfire", kind: "clutter", x: 0.5, y: 0.56, scale: 0.36 },
+    { key: "tent", spriteId: "clutter_t3_pavilion", interact: "bed", kind: "clutter", x: 0.26, y: 0.68, scale: 0.42 },
+  ];
+
+  return props.map((p) => {
+    const id = `meadow-prop-${p.key}`;
+    const pos = layoutOverrides[id] ?? { x: p.x, y: p.y };
+    return {
+      id,
+      kind: p.kind,
+      spriteId: p.spriteId,
+      x: pos.x,
+      y: pos.y,
+      scale: p.scale * ENTITY_SCALE,
+      footY: pos.y,
+      movable: true,
+      interact: p.interact,
+    };
+  });
+}
+
 /**
  * Active island world entities.
- * Meadow/Lagoon: five plowed plots on the shared map graph (Dig/Water Sheet 1).
- * Buildings stay empty so decorate mode places them in open clearings.
+ * a1 Meadow: open-grass interactive props (no dirt plots).
+ * Other shared-graph islands: plots + starter stations.
  */
 export function buildIslandEntities(
   manifest: Manifest,
@@ -138,6 +183,7 @@ export function buildIslandEntities(
   },
   layoutOverrides: Record<string, { x: number; y: number }> = {}
 ): WorldEntity[] {
+  if (island === "meadow") return buildMeadowEntities(layoutOverrides);
   if (!usesSharedMapGraph(island)) return [];
 
   const entities: WorldEntity[] = [];

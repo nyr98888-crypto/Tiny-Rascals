@@ -2,19 +2,19 @@ import type { IslandId, Vec2 } from "./types";
 import {
   clampToRoadNetwork,
   randomRoadTarget,
+  usesOpenGrassWalk,
   usesSharedMapGraph,
 } from "./mapGraph";
 
 /**
- * Meadow grass-only clearing — legacy fallback for non-shared islands.
+ * a1 Meadow — full open lawn between soft top/bottom tree·rock borders.
+ * Left/right stay open so Rascals roam the green clearing + pebble path.
  */
 const MEADOW_GRASS: Vec2[] = [
-  { x: 0.21, y: 0.35 },
-  { x: 0.72, y: 0.35 },
-  { x: 0.72, y: 0.65 },
-  { x: 0.68, y: 0.72 },
-  { x: 0.68, y: 0.85 },
-  { x: 0.21, y: 0.85 },
+  { x: 0.03, y: 0.13 },
+  { x: 0.97, y: 0.13 },
+  { x: 0.97, y: 0.88 },
+  { x: 0.03, y: 0.88 },
 ];
 
 function grassClearing(
@@ -93,26 +93,14 @@ export function closestPointOnPolygon(point: Vec2, polygon: Vec2[]): Vec2 {
   return { x: best.x, y: best.y };
 }
 
-/** Clamp feet onto the road network (Meadow/Lagoon) or legacy grass poly. */
-export function clampToWalkBounds(
-  x: number,
-  y: number,
-  island: IslandId = "meadow"
-): Vec2 {
-  if (usesSharedMapGraph(island)) {
-    return clampToRoadNetwork(x, y);
-  }
+function clampToGrassPoly(x: number, y: number, island: IslandId): Vec2 {
   const poly = getIslandClearing(island);
   const p = { x, y };
   if (pointInPolygon(p, poly)) return p;
   return closestPointOnPolygon(p, poly);
 }
 
-/** Pick a wander target on the road graph or inside the grass clearing. */
-export function randomPointInClearing(island: IslandId): Vec2 {
-  if (usesSharedMapGraph(island)) {
-    return randomRoadTarget();
-  }
+function randomInGrassPoly(island: IslandId): Vec2 {
   const poly = getIslandClearing(island);
   let minX = Infinity;
   let maxX = -Infinity;
@@ -132,6 +120,24 @@ export function randomPointInClearing(island: IslandId): Vec2 {
     if (pointInPolygon(p, poly)) return p;
   }
   return clampToWalkBounds((minX + maxX) / 2, (minY + maxY) / 2, island);
+}
+
+/** Clamp feet onto open grass (a1) / road network / legacy grass poly. */
+export function clampToWalkBounds(
+  x: number,
+  y: number,
+  island: IslandId = "meadow"
+): Vec2 {
+  if (usesOpenGrassWalk(island)) return clampToGrassPoly(x, y, island);
+  if (usesSharedMapGraph(island)) return clampToRoadNetwork(x, y);
+  return clampToGrassPoly(x, y, island);
+}
+
+/** Pick a wander target on open grass (a1), the road graph, or a grass poly. */
+export function randomPointInClearing(island: IslandId): Vec2 {
+  if (usesOpenGrassWalk(island)) return randomInGrassPoly(island);
+  if (usesSharedMapGraph(island)) return randomRoadTarget();
+  return randomInGrassPoly(island);
 }
 
 /**
