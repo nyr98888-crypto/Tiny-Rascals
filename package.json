@@ -4,9 +4,6 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build-assets": "node scripts/build-assets.mjs",
-    "normalize-pets": "node scripts/normalize-pets.mjs",
-    "build-pet-manifest": "node scripts/build-pet-manifest.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

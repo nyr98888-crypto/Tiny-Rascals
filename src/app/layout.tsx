@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Tiny Rascals",
-  description: "Cozy 2.5D tabletop diorama & idle life-sim",
+  description: "Tiny Rascals",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
